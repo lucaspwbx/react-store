@@ -41,7 +41,7 @@ func NewBook(name string, pages int, language string, ISBN string) (*Book, error
 	return book, err
 }
 
-func DeleteBook(name string) error {
+func DeleteBookByName(name string) error {
 	session, err := getSession()
 	if err != nil {
 		log.Fatalln("Error opening session")
@@ -52,7 +52,18 @@ func DeleteBook(name string) error {
 	return err
 }
 
-func GetBook(name string) (Book, error) {
+func DeleteBookById(id string) error {
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("books")
+	err = c.RemoveId(id)
+	return err
+}
+
+func GetBookByName(name string) (Book, error) {
 	var book Book
 	session, err := getSession()
 	if err != nil {
@@ -62,6 +73,29 @@ func GetBook(name string) (Book, error) {
 	c := session.DB("bookstore").C("books")
 	err = c.Find(bson.M{"name": name}).One(&book)
 	return book, err
+}
+
+func GetBookById(id string) (Book, error) {
+	var book Book
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("books")
+	err = c.FindId(id).One(&book)
+	return book, err
+}
+
+func UpdateBookById(id string, params bson.M) error {
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("books")
+	err = c.UpdateId(id, params)
+	return err
 }
 
 type Review struct {
@@ -82,18 +116,26 @@ func main() {
 		fmt.Println("Error inserting new book")
 		return
 	}
-	book, err := GetBook("english for dummies")
+	book, err := GetBookByName("english for dummies")
 	if err != nil {
 		fmt.Println("Nao achou")
 		return
 	}
 	fmt.Println(book.Name)
+	id := book.Id
+	update := bson.M{"$set": bson.M{"name": "modified", "pages": 29}}
+	err = UpdateBookById(id, update)
+	if err != nil {
+		fmt.Println("Error updating: ", err)
+		return
+	}
+	fmt.Println("Updated")
 	//fmt.Println("Inseted")
 	//fmt.Println(book)
-	err = DeleteBook("english for dummies")
-	if err != nil {
-		fmt.Println("Not deleted")
-	}
+	//err = DeleteBookByName("english for dummies")
+	//if err != nil {
+	//fmt.Println("Not deleted")
+	//}
 }
 
 func getSession() (*mgo.Session, error) {
