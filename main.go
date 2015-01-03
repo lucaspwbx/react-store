@@ -98,11 +98,39 @@ func UpdateBookById(id string, params bson.M) error {
 	return err
 }
 
+func AddReview() error {
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	users := session.DB("bookstore").C("users")
+	//books := session.DB("bookstore").C("books")
+	reviews := session.DB("bookstore").C("reviews")
+	user := &User{Id: newID(), Name: "Renato"}
+	err = users.Insert(user)
+	if err != nil {
+		log.Println("Error inserting user: ", user)
+	}
+	review := &Review{Id: newID(), Description: "foobar", User: *user}
+	err = reviews.Insert(review)
+	if err != nil {
+		log.Println("Error inserting review", err)
+	}
+	book, _ := GetBookByName("english for dummies")
+	fmt.Println(book)
+	//book.Reviews = append(book.Reviews, *review)
+	err = UpdateBookById(book.Id, bson.M{"$set": bson.M{"reviews": review}})
+	if err != nil {
+		log.Println("Updating error", err)
+	}
+	return nil
+}
+
 type Review struct {
 	Id          string `bson:"_id"`
 	Description string
 	User        User
-	Book        Book
 }
 
 type User struct {
@@ -122,20 +150,21 @@ func main() {
 		return
 	}
 	fmt.Println(book.Name)
-	id := book.Id
-	update := bson.M{"$set": bson.M{"name": "modified", "pages": 29}}
-	err = UpdateBookById(id, update)
-	if err != nil {
-		fmt.Println("Error updating: ", err)
-		return
-	}
-	fmt.Println("Updated")
+	//id := book.Id
+	//update := bson.M{"$set": bson.M{"name": "modified", "pages": 29}}
+	//err = UpdateBookById(id, update)
+	//if err != nil {
+	//fmt.Println("Error updating: ", err)
+	//return
+	//}
+	//fmt.Println("Updated")
 	//fmt.Println("Inseted")
 	//fmt.Println(book)
 	//err = DeleteBookByName("english for dummies")
 	//if err != nil {
 	//fmt.Println("Not deleted")
 	//}
+	AddReview()
 }
 
 func getSession() (*mgo.Session, error) {
