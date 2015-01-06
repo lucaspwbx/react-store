@@ -51,7 +51,8 @@ func (b Book) AddReview(description string, user User) error {
 		//log.Println("Error inserting review", err)
 		return errors.New("Error inserting review")
 	}
-	err = UpdateBookById(book.Id, bson.M{"$set": bson.M{"reviews": review}})
+	b.Reviews = append(b.Reviews, review)
+	err = UpdateBookById(book.Id, bson.M{"$set": bson.M{"reviews": b.Reviews}})
 	if err != nil {
 		//	log.Println("Updating error", err)
 		return errors.New("Updating error")
