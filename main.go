@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha512"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -11,6 +12,17 @@ import (
 	"gopkg.in/mgo.v2/bson"
 )
 
+type Review struct {
+	Id          string `bson:"_id"`
+	Description string
+	User        User
+}
+
+type User struct {
+	Id   string `bson:"_id"`
+	Name string
+}
+
 type Book struct {
 	Id       string `bson:"_id"`
 	Name     string
@@ -18,6 +30,139 @@ type Book struct {
 	Language string
 	ISBN     string
 	Reviews  []Review
+}
+
+func (b Book) AddReview(description string, user User) error {
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	users := session.DB("bookstore").C("users")
+
+	review := &Review{
+		Id:          newID(),
+		Description: description,
+		User:        user,
+	}
+	reviews := session.DB("bookstore").C("reviews")
+	err = reviews.Insert(review)
+	if err != nil {
+		//log.Println("Error inserting review", err)
+		return errors.New("Error inserting review")
+	}
+	err = UpdateBookById(book.Id, bson.M{"$set": bson.M{"reviews": review}})
+	if err != nil {
+		//	log.Println("Updating error", err)
+		return errors.New("Updating error")
+	}
+	return nil
+}
+
+func NewUser(name string) (*User, error) {
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+	user := &User{Id: newID(), Name: name}
+	err = c.Insert(user)
+	if err != nil {
+		log.Println("Error inserting user: ", user)
+	}
+	return user, err
+}
+
+func GetUserByName(name string) (User, error) {
+	var user User
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+	err = c.Find(bson.M{"name": name}).One(&user)
+	return user, err
+}
+
+func GetReviewById(id string) (Review, error) {
+	var review Review
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("reviews")
+	err = c.FindId(id).One(&review)
+	return review, err
+}
+
+func GetUserById(id string) (User, error) {
+	var user User
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+	err = c.FindId(id).One(&user)
+	return user, err
+}
+
+func DeleteUserByName(name string) error {
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+	err = c.Remove(bson.M{"name": name})
+	return err
+}
+
+func DeleteUserById(id string) error {
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+	err = c.RemoveId(id)
+	return err
+}
+
+func DeleteReviewById(id string) error {
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("reviews")
+	err = c.RemoveId(id)
+	return err
+}
+
+func UpdateUserById(id string, params bson.M) error {
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+	err = c.UpdateId(id, params)
+	return err
+}
+
+func UpdateReviewById(id string, params bson.M) error {
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("reviews")
+	err = c.UpdateId(id, params)
+	return err
 }
 
 func NewBook(name string, pages int, language string, ISBN string) (*Book, error) {
@@ -125,17 +270,6 @@ func AddReview() error {
 		log.Println("Updating error", err)
 	}
 	return nil
-}
-
-type Review struct {
-	Id          string `bson:"_id"`
-	Description string
-	User        User
-}
-
-type User struct {
-	Id   string `bson:"_id"`
-	Name string
 }
 
 func main() {
