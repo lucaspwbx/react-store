@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/react/0.12.0/react.min.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/react/0.12.0/JSXTransformer.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="text/jsx">
+
+      var review1 = { description: "Cool book", user: { name: "Dek" } };
+      var review2 = { description: "Did not like", user: { name: "Xiao" } };
+      var books = [
+        { name: "english for dummies", pages: "50", language: "english", isbn: "0xbyz", reviews: [review1] },
+        { name: "deutsch for dummies", pages: "90", language: "deutsch", isbn: "0xzzzz", reviews: [review2] }
+      ];
+
+      var BookList = React.createClass({
+        render: function() {
+          var list = books.map(function(book) {
+            var reviews = book.reviews.map(function(review) {
+              return (
+                <Review description={review.description}
+                        user={review.user}
+                        />
+                );
+            });
+
+            return <Book name={book.name}
+                         pages={book.pages}
+                         language={book.language}
+                         isbn={book.isbn}
+                         reviews={reviews}
+                         />
+          });
+
+          return (
+            <div>
+              {list}
+            </div>
+            );
+        }
+      });
+
+      var Book = React.createClass({
+        render: function() {
+          return (
+            <div>
+             Name: {this.props.name}
+             <br/>
+             Pages: {this.props.pages}
+             <br/>
+             Language: {this.props.language}
+             <br/>
+             ISBN: {this.props.isbn}
+             <br/>
+             Reviews:
+             <br/>
+             {this.props.reviews}
+            </div>
+            );
+        }
+      });
+
+      var Review = React.createClass({
+        render: function() {
+          return (
+            <div>
+            <b>{this.props.description}</b>
+            <br/>
+            User: {this.props.user.name}
+            </div>
+            );
+        }
+      });
+
+      React.render(
+        <BookList/>, document.getElementById('app')
+        );
+    </script>
+  </body>
+</html>
