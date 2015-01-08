@@ -3,9 +3,12 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha512"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"os"
 	"time"
 
 	"gopkg.in/mgo.v2"
@@ -20,7 +23,7 @@ type Review struct {
 
 type User struct {
 	Id   string `bson:"_id"`
-	Name string
+	Name string `json:"name"`
 }
 
 type Book struct {
@@ -38,7 +41,7 @@ func (b Book) AddReview(description string, user User) error {
 		log.Fatalln("Error opening session")
 	}
 	defer session.Close()
-	users := session.DB("bookstore").C("users")
+	//users := session.DB("bookstore").C("users")
 
 	review := &Review{
 		Id:          newID(),
@@ -51,13 +54,37 @@ func (b Book) AddReview(description string, user User) error {
 		//log.Println("Error inserting review", err)
 		return errors.New("Error inserting review")
 	}
-	b.Reviews = append(b.Reviews, review)
-	err = UpdateBookById(book.Id, bson.M{"$set": bson.M{"reviews": b.Reviews}})
+	b.Reviews = append(b.Reviews, *review)
+	err = UpdateBookById(b.Id, bson.M{"$set": bson.M{"reviews": b.Reviews}})
 	if err != nil {
 		//	log.Println("Updating error", err)
 		return errors.New("Updating error")
 	}
 	return nil
+}
+
+// Format: {"id":"2","name":"joaozinho"}
+// {"name":"alco"}
+func NewUser2(res http.ResponseWriter, req *http.Request) {
+	var user User
+	err := json.NewDecoder(req.Body).Decode(&user)
+	if err != nil {
+		log.Fatalln("Error decoding JSON")
+	}
+	session, err := getSession()
+	if err != nil {
+		log.Fatalln("Error opening session")
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+	//user := &User{Id: newID(), Name: name}
+	user.Id = newID()
+	err = c.Insert(user)
+	if err != nil {
+		log.Fatalln("Error inserting user: ", user)
+	}
+	res.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(res).Encode("{'user':'saved'}")
 }
 
 func NewUser(name string) (*User, error) {
@@ -274,17 +301,17 @@ func AddReview() error {
 }
 
 func main() {
-	_, err := NewBook("english for dummies", 10, "english", "0xyzueue")
-	if err != nil {
-		fmt.Println("Error inserting new book")
-		return
-	}
-	book, err := GetBookByName("english for dummies")
-	if err != nil {
-		fmt.Println("Nao achou")
-		return
-	}
-	fmt.Println(book.Name)
+	//_, err := NewBook("english for dummies", 10, "english", "0xyzueue")
+	//if err != nil {
+	//fmt.Println("Error inserting new book")
+	//return
+	//}
+	//book, err := GetBookByName("english for dummies")
+	//if err != nil {
+	//fmt.Println("Nao achou")
+	//return
+	//}
+	//fmt.Println(book.Name)
 	//id := book.Id
 	//update := bson.M{"$set": bson.M{"name": "modified", "pages": 29}}
 	//err = UpdateBookById(id, update)
@@ -299,7 +326,11 @@ func main() {
 	//if err != nil {
 	//fmt.Println("Not deleted")
 	//}
-	AddReview()
+	//AddReview()
+	t := User{Id: "1", Name: "teste"}
+	json.NewEncoder(os.Stdout).Encode(t)
+	http.HandleFunc("/teste", NewUser2)
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func getSession() (*mgo.Session, error) {
