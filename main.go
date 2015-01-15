@@ -88,21 +88,6 @@ func NewUser2(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode("{'user':'saved'}")
 }
 
-func NewUser(name string) (*User, error) {
-	session, err := getSession()
-	if err != nil {
-		log.Fatalln("Error opening session")
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("users")
-	user := &User{Id: newID(), Name: name}
-	err = c.Insert(user)
-	if err != nil {
-		log.Println("Error inserting user: ", user)
-	}
-	return user, err
-}
-
 func GetUserByName(name string) (User, error) {
 	var user User
 	session, err := getSession()
