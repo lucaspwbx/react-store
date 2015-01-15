@@ -80,7 +80,8 @@ func NewUser(res http.ResponseWriter, req *http.Request) {
 	err = c.Insert(user)
 	if err != nil {
 		msg := fmt.Sprintf("Error inserting user: %s", user.Name)
-		http.Error(res, msg, http.StatusInternalServerError)
+		//http.Error(res, msg, http.StatusInternalServerError)
+		http.Error(res, msg, http.StatusNotFound)
 	}
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusCreated)
@@ -132,38 +133,62 @@ func GetUserById(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(user)
 }
 
-func GetReviewById(id string) (Review, error) {
-	var review Review
+func DeleteUserByName(res http.ResponseWriter, req *http.Request) {
+	name := req.FormValue("name")
+	if name == "" {
+		http.Error(res, "No name has been given", http.StatusBadRequest)
+	}
 	session, err := getSession()
 	if err != nil {
-		log.Fatalln("Error opening session")
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+	if err = c.Remove(bson.M{"name": name}); err != nil {
+		msg := fmt.Sprintf("User with name %s not found", name)
+		http.Error(res, msg, http.StatusNotFound)
+	}
+	res.WriteHeader(http.StatusNoContent)
+}
+
+func DeleteUserById(res http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("id")
+	if id == "" {
+		http.Error(res, "No id has been given", http.StatusBadRequest)
+	}
+	session, err := getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+	if err = c.RemoveId(id); err != nil {
+		msg := fmt.Sprintf("User with id %s not found", id)
+		http.Error(res, msg, http.StatusNotFound)
+	}
+	res.WriteHeader(http.StatusNoContent)
+}
+
+func GetReviewById(res http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("id")
+	if id == "" {
+		http.Error(res, "No id has been given", http.StatusBadRequest)
+	}
+	session, err := getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("reviews")
+
+	var review Review
 	err = c.FindId(id).One(&review)
-	return review, err
-}
-
-func DeleteUserByName(name string) error {
-	session, err := getSession()
 	if err != nil {
-		log.Fatalln("Error opening session")
+		msg := fmt.Sprintf("Review with id %s has not been found", id)
+		http.Error(res, msg, http.StatusNotFound)
 	}
-	defer session.Close()
-	c := session.DB("bookstore").C("users")
-	err = c.Remove(bson.M{"name": name})
-	return err
-}
-
-func DeleteUserById(id string) error {
-	session, err := getSession()
-	if err != nil {
-		log.Fatalln("Error opening session")
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("users")
-	err = c.RemoveId(id)
-	return err
+	res.Header().Set("Content-Type", "appliction/json")
+	json.NewEncoder(res).Encode(review)
 }
 
 func DeleteReviewById(id string) error {
