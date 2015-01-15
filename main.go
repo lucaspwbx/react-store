@@ -92,13 +92,14 @@ func GetUserByName(res http.ResponseWriter, req *http.Request) {
 	if name == "" {
 		http.Error(res, "No name given", http.StatusBadRequest)
 	}
-	var user User
 	session, err := getSession()
 	if err != nil {
 		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("users")
+
+	var user User
 	err = c.Find(bson.M{"name": name}).One(&user)
 	if err != nil {
 		msg := fmt.Sprintf("User %s not found", name)
@@ -109,16 +110,26 @@ func GetUserByName(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(user)
 }
 
-func GetUserById(id string) (User, error) {
-	var user User
+func GetUserById(res http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("id")
+	if id == "" {
+		http.Error(res, "No id given", http.StatusBadRequest)
+	}
 	session, err := getSession()
 	if err != nil {
-		log.Fatalln("Error opening session")
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("users")
+
+	var user User
 	err = c.FindId(id).One(&user)
-	return user, err
+	if err != nil {
+		msg := fmt.Sprintf("User with id %s not found", id)
+		http.Error(res, msg, http.StatusNotFound)
+	}
+	res.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(res).Encode(user)
 }
 
 func GetReviewById(id string) (Review, error) {
