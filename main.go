@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"gopkg.in/mgo.v2"
@@ -65,7 +64,7 @@ func (b Book) AddReview(description string, user User) error {
 
 // Format: {"id":"2","name":"joaozinho"}
 // {"name":"alco"}
-func NewUser2(res http.ResponseWriter, req *http.Request) {
+func NewUser(res http.ResponseWriter, req *http.Request) {
 	var user User
 	err := json.NewDecoder(req.Body).Decode(&user)
 	if err != nil {
@@ -88,7 +87,29 @@ func NewUser2(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode("{'user':'saved'}")
 }
 
-func GetUserByName(name string) (User, error) {
+func GetUserByName(res http.ResponseWriter, req *http.Request) {
+	name := req.FormValue("name")
+	if name == "" {
+		http.Error(res, "No name given", http.StatusBadRequest)
+	}
+	var user User
+	session, err := getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+	err = c.Find(bson.M{"name": name}).One(&user)
+	if err != nil {
+		msg := fmt.Sprintf("User %s not found", name)
+		http.Error(res, msg, http.StatusNotFound)
+		//	http.NotFound(res, req)
+	}
+	res.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(res).Encode(user)
+}
+
+func GetUserById(id string) (User, error) {
 	var user User
 	session, err := getSession()
 	if err != nil {
@@ -96,7 +117,7 @@ func GetUserByName(name string) (User, error) {
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("users")
-	err = c.Find(bson.M{"name": name}).One(&user)
+	err = c.FindId(id).One(&user)
 	return user, err
 }
 
@@ -110,18 +131,6 @@ func GetReviewById(id string) (Review, error) {
 	c := session.DB("bookstore").C("reviews")
 	err = c.FindId(id).One(&review)
 	return review, err
-}
-
-func GetUserById(id string) (User, error) {
-	var user User
-	session, err := getSession()
-	if err != nil {
-		log.Fatalln("Error opening session")
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("users")
-	err = c.FindId(id).One(&user)
-	return user, err
 }
 
 func DeleteUserByName(name string) error {
@@ -313,9 +322,9 @@ func main() {
 	//fmt.Println("Not deleted")
 	//}
 	//AddReview()
-	t := User{Id: "1", Name: "teste"}
-	json.NewEncoder(os.Stdout).Encode(t)
-	http.HandleFunc("/teste", NewUser2)
+	//t := User{Id: "1", Name: "teste"}
+	//json.NewEncoder(os.Stdout).Encode(t)
+	http.HandleFunc("/teste", NewUser)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
