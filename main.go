@@ -69,21 +69,22 @@ func NewUser2(res http.ResponseWriter, req *http.Request) {
 	var user User
 	err := json.NewDecoder(req.Body).Decode(&user)
 	if err != nil {
-		log.Fatalln("Error decoding JSON")
+		http.Error(res, "Error decoding JSON", http.StatusBadRequest)
 	}
 	session, err := getSession()
 	if err != nil {
-		log.Fatalln("Error opening session")
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("users")
-	//user := &User{Id: newID(), Name: name}
 	user.Id = newID()
 	err = c.Insert(user)
 	if err != nil {
-		log.Fatalln("Error inserting user: ", user)
+		msg := fmt.Sprintf("Error inserting user: %s", user.Name)
+		http.Error(res, msg, http.StatusInternalServerError)
 	}
 	res.Header().Set("Content-Type", "application/json")
+	res.WriteHeader(http.StatusCreated)
 	json.NewEncoder(res).Encode("{'user':'saved'}")
 }
 
