@@ -225,26 +225,32 @@ func GetReviewById(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(review)
 }
 
-func DeleteReviewById(id string) error {
+func DeleteReviewById(res http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("id")
+	if id == "" {
+		http.Error(res, "No id has been given", http.StatusBadRequest)
+	}
 	session, err := getSession()
 	if err != nil {
-		log.Fatalln("Error opening session")
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("reviews")
+
 	err = c.RemoveId(id)
-	return err
+	if err != nil {
+		msg := fmt.Sprintf("Review with id %s has not been found", id)
+		http.Error(res, msg, http.StatusNotFound)
+	}
+	res.WriteHeader(http.StatusNoContent)
+	res.Header().Set("Content-Type", "application/json")
+	res.Write([]byte("deleted"))
+	//json.NewEncoder(res).Encode(review)
 }
 
-func UpdateReviewById(id string, params bson.M) error {
-	session, err := getSession()
-	if err != nil {
-		log.Fatalln("error opening session")
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("reviews")
-	err = c.UpdateId(id, params)
-	return err
+func UpdateReviewById(res http.ResponseWriter, req *http.Request) {
+	//TODO
+	//c.UpdateId(id, params) -> bson.M
 }
 
 func NewBook(name string, pages int, language string, ISBN string) (*Book, error) {
