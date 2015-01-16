@@ -272,6 +272,51 @@ func NewBook(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(book)
 }
 
+func DeleteBookById(res http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("id")
+	if id == "" {
+		http.Error(res, "No id has been given", http.StatusBadRequest)
+	}
+	session, err := getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("books")
+
+	err = c.RemoveId(id)
+	if err != nil {
+		msg := fmt.Sprintf("Book with id %s has not been found", id)
+		http.Error(res, msg, http.StatusNotFound)
+	}
+	res.WriteHeader(http.StatusNoContent)
+	//res.Header().Set("Content-Type", "application/json")
+	res.Write([]byte("deleted"))
+	//json.NewEncoder(res).Encode(review)
+}
+
+func GetBookById(res http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("id")
+	if id == "" {
+		http.Error(res, "No id has been given", http.StatusBadRequest)
+	}
+	session, err := getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("books")
+
+	var book Book
+	err = c.FindId(id).One(&book)
+	if err != nil {
+		msg := fmt.Sprintf("Book with id %s has not been found", id)
+		http.Error(res, msg, http.StatusNotFound)
+	}
+	res.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(res).Encode(book)
+}
+
 func DeleteBookByName(name string) error {
 	session, err := getSession()
 	if err != nil {
@@ -280,17 +325,6 @@ func DeleteBookByName(name string) error {
 	defer session.Close()
 	c := session.DB("bookstore").C("books")
 	err = c.Remove(bson.M{"name": name})
-	return err
-}
-
-func DeleteBookById(id string) error {
-	session, err := getSession()
-	if err != nil {
-		log.Fatalln("Error opening session")
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-	err = c.RemoveId(id)
 	return err
 }
 
