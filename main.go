@@ -318,8 +318,8 @@ func GetBookById(res http.ResponseWriter, req *http.Request) {
 }
 
 func GetBookByName(res http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("name")
-	if id == "" {
+	name := req.FormValue("name")
+	if name == "" {
 		http.Error(res, "No name has been given", http.StatusBadRequest)
 	}
 	session, err := getSession()
@@ -332,7 +332,7 @@ func GetBookByName(res http.ResponseWriter, req *http.Request) {
 	var book Book
 	err = c.Find(bson.M{"name": name}).One(&book)
 	if err != nil {
-		msg := fmt.Sprintf("Book with id %s has not been found", id)
+		msg := fmt.Sprintf("Book with name %s has not been found", name)
 		http.Error(res, msg, http.StatusNotFound)
 	}
 	res.Header().Set("Content-Type", "application/json")
@@ -340,8 +340,8 @@ func GetBookByName(res http.ResponseWriter, req *http.Request) {
 }
 
 func DeleteBookByName(res http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("name")
-	if id == "" {
+	name := req.FormValue("name")
+	if name == "" {
 		http.Error(res, "No name has been given", http.StatusBadRequest)
 	}
 	session, err := getSession()
@@ -353,22 +353,35 @@ func DeleteBookByName(res http.ResponseWriter, req *http.Request) {
 
 	err = c.Remove(bson.M{"name": name})
 	if err != nil {
-		msg := fmt.Sprintf("Book with id %s has not been found", id)
+		msg := fmt.Sprintf("Book with name %s has not been found", name)
 		http.Error(res, msg, http.StatusNotFound)
 	}
 	res.Header().Set("Content-Type", "application/json")
 	res.Write([]byte("deleted"))
 }
 
-func UpdateBookById(id string, params bson.M) error {
-	session, err := getSession()
+func UpdateBookById(res http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("id")
+	if id == "" {
+		http.Error(res, "No id has been given", http.StatusBadRequest)
+	}
+	var params map[string]interface{}
+	err := json.NewDecoder(req.Body).Decode(&params)
 	if err != nil {
-		log.Fatalln("Error opening session")
+		http.Error(res, "Problems decoding JSON", http.StatusUnprocessableEntity)
+	}
+	session, err = getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("books")
-	err = c.UpdateId(id, params)
-	return err
+
+	update := bson.M{"$set": bson.M{params}}
+	if err = c.UpdateId(id, update); err != nil {
+		http.Error(res, "Problem updating book", http.StatusNotFound)
+	}
+	res.Write([]byte("updated"))
 }
 
 func AddReview() error {
