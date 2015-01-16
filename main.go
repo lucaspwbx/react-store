@@ -169,6 +169,40 @@ func DeleteUserById(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusNoContent)
 }
 
+func UpdateUserById(res http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("id")
+	if id == "" {
+		http.Error(res, "No id has been given", http.StatusBadRequest)
+	}
+
+	var params map[string]interface{}
+	err := json.NewDecoder(req.Body).Decode(&params)
+	if err != nil {
+		http.Error(res, "Problem decoding JSON", http.StatusUnprocessableEntity)
+	}
+
+	//var user User
+	//err := json.NewDecoder(req.Body).Decode(&user)
+	//if err != nil {
+	//http.Error(res, "Problem decoding JSON", http.StatusUnprocessableEntity)
+	//}
+
+	//update := bson.M{"$set": bson.M{"name": "modified", "pages": 29}}
+	session, err := getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("users")
+
+	update := bson.M{"$set": bson.M{params}}
+	if err = c.UpdateId(id, params); err != nil {
+		msg := fmt.Sprintf("User with id %s not found", id)
+		http.Error(res, msg, http.StatusNotFound)
+	}
+	res.Write([]byte("user updated"))
+}
+
 func GetReviewById(res http.ResponseWriter, req *http.Request) {
 	id := req.FormValue("id")
 	if id == "" {
@@ -187,7 +221,7 @@ func GetReviewById(res http.ResponseWriter, req *http.Request) {
 		msg := fmt.Sprintf("Review with id %s has not been found", id)
 		http.Error(res, msg, http.StatusNotFound)
 	}
-	res.Header().Set("Content-Type", "appliction/json")
+	res.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(res).Encode(review)
 }
 
@@ -199,17 +233,6 @@ func DeleteReviewById(id string) error {
 	defer session.Close()
 	c := session.DB("bookstore").C("reviews")
 	err = c.RemoveId(id)
-	return err
-}
-
-func UpdateUserById(id string, params bson.M) error {
-	session, err := getSession()
-	if err != nil {
-		log.Fatalln("Error opening session")
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("users")
-	err = c.UpdateId(id, params)
 	return err
 }
 
