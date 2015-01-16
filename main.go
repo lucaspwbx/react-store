@@ -317,39 +317,47 @@ func GetBookById(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(book)
 }
 
-func DeleteBookByName(name string) error {
+func GetBookByName(res http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("name")
+	if id == "" {
+		http.Error(res, "No name has been given", http.StatusBadRequest)
+	}
 	session, err := getSession()
 	if err != nil {
-		log.Fatalln("Error opening session")
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("books")
-	err = c.Remove(bson.M{"name": name})
-	return err
-}
 
-func GetBookByName(name string) (Book, error) {
 	var book Book
-	session, err := getSession()
-	if err != nil {
-		log.Fatalln("Error opening session")
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
 	err = c.Find(bson.M{"name": name}).One(&book)
-	return book, err
+	if err != nil {
+		msg := fmt.Sprintf("Book with id %s has not been found", id)
+		http.Error(res, msg, http.StatusNotFound)
+	}
+	res.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(res).Encode(book)
 }
 
-func GetBookById(id string) (Book, error) {
-	var book Book
+func DeleteBookByName(res http.ResponseWriter, req *http.Request) {
+	id := req.FormValue("name")
+	if id == "" {
+		http.Error(res, "No name has been given", http.StatusBadRequest)
+	}
 	session, err := getSession()
 	if err != nil {
-		log.Fatalln("Error opening session")
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("books")
-	err = c.FindId(id).One(&book)
-	return book, err
+
+	err = c.Remove(bson.M{"name": name})
+	if err != nil {
+		msg := fmt.Sprintf("Book with id %s has not been found", id)
+		http.Error(res, msg, http.StatusNotFound)
+	}
+	res.Header().Set("Content-Type", "application/json")
+	res.Write([]byte("deleted"))
 }
 
 func UpdateBookById(id string, params bson.M) error {
