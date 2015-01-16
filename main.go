@@ -253,25 +253,23 @@ func UpdateReviewById(res http.ResponseWriter, req *http.Request) {
 	//c.UpdateId(id, params) -> bson.M
 }
 
-func NewBook(name string, pages int, language string, ISBN string) (*Book, error) {
+func NewBook(res http.ResponseWriter, req *http.Request) {
+	var book Book
+	err := json.NewDecoder(req.Body).Decode(&book)
+	if err != nil {
+		http.Error(res, "Error decoding json", http.StatusBadRequest)
+	}
 	session, err := getSession()
 	if err != nil {
-		log.Fatalln("Error opening session")
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
-	defer session.Close()
 	c := session.DB("bookstore").C("books")
-	book := &Book{
-		Id:       newID(),
-		Name:     name,
-		Pages:    pages,
-		Language: language,
-		ISBN:     ISBN,
+	book.Id = newID()
+	if err = c.Insert(book); err != nil {
+		http.Error(res, "Error inserting book", http.StatusNotFound)
 	}
-	err = c.Insert(book)
-	if err != nil {
-		log.Println("Error inserting book: ", book)
-	}
-	return book, err
+	res.WriteHeader(http.StatusCreated)
+	json.NewEncoder(res).Encode(book)
 }
 
 func DeleteBookByName(name string) error {
