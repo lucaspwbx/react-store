@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gorilla/mux"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
@@ -64,7 +65,7 @@ func (b Book) AddReview(description string, user User) error {
 
 // Format: {"id":"2","name":"joaozinho"}
 // {"name":"alco"}
-func NewUser(res http.ResponseWriter, req *http.Request) {
+func NewUserHandler(res http.ResponseWriter, req *http.Request) {
 	var user User
 	err := json.NewDecoder(req.Body).Decode(&user)
 	if err != nil {
@@ -79,17 +80,18 @@ func NewUser(res http.ResponseWriter, req *http.Request) {
 	user.Id = newID()
 	err = c.Insert(user)
 	if err != nil {
-		msg := fmt.Sprintf("Error inserting user: %s", user.Name)
-		//http.Error(res, msg, http.StatusInternalServerError)
-		http.Error(res, msg, http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
 	}
+	location := fmt.Sprintf("/users/%s", user.Id)
 	res.Header().Set("Content-Type", "application/json")
+	res.Header().Set("Location", location)
 	res.WriteHeader(http.StatusCreated)
-	json.NewEncoder(res).Encode("{'user':'saved'}")
+	json.NewEncoder(res).Encode(user)
 }
 
-func GetUserByName(res http.ResponseWriter, req *http.Request) {
-	name := req.FormValue("name")
+//now using mux
+func GetUserByNameHandler(res http.ResponseWriter, req *http.Request) {
+	name := mux.Vars(req)["name"]
 	if name == "" {
 		http.Error(res, "No name given", http.StatusBadRequest)
 	}
@@ -105,14 +107,14 @@ func GetUserByName(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		msg := fmt.Sprintf("User %s not found", name)
 		http.Error(res, msg, http.StatusNotFound)
-		//	http.NotFound(res, req)
 	}
 	res.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(res).Encode(user)
 }
 
-func GetUserById(res http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("id")
+//now using mux
+func GetUserByIdHandler(res http.ResponseWriter, req *http.Request) {
+	id := mux.Vars(req)["id"]
 	if id == "" {
 		http.Error(res, "No id given", http.StatusBadRequest)
 	}
@@ -133,8 +135,9 @@ func GetUserById(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(user)
 }
 
-func DeleteUserByName(res http.ResponseWriter, req *http.Request) {
-	name := req.FormValue("name")
+//now using mux
+func DeleteUserByNameHandler(res http.ResponseWriter, req *http.Request) {
+	name := mux.Vars(req)["name"]
 	if name == "" {
 		http.Error(res, "No name has been given", http.StatusBadRequest)
 	}
@@ -145,16 +148,16 @@ func DeleteUserByName(res http.ResponseWriter, req *http.Request) {
 	defer session.Close()
 	c := session.DB("bookstore").C("users")
 	if err = c.Remove(bson.M{"name": name}); err != nil {
-		msg := fmt.Sprintf("User with name %s not found", name)
-		http.Error(res, msg, http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
 	}
 	res.WriteHeader(http.StatusNoContent)
 }
 
-func DeleteUserById(res http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("id")
+//now using mux
+func DeleteUserByIdHandler(res http.ResponseWriter, req *http.Request) {
+	id := mux.Vars(req)["id"]
 	if id == "" {
-		http.Error(res, "No id has been given", http.StatusBadRequest)
+		http.Error(res, "No id given", http.StatusBadRequest)
 	}
 	session, err := getSession()
 	if err != nil {
@@ -163,16 +166,16 @@ func DeleteUserById(res http.ResponseWriter, req *http.Request) {
 	defer session.Close()
 	c := session.DB("bookstore").C("users")
 	if err = c.RemoveId(id); err != nil {
-		msg := fmt.Sprintf("User with id %s not found", id)
-		http.Error(res, msg, http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
 	}
 	res.WriteHeader(http.StatusNoContent)
 }
 
-func UpdateUserById(res http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("id")
+//now using mux
+func UpdateUserByIdHandler(res http.ResponseWriter, req *http.Request) {
+	id := mux.Vars(req)["id"]
 	if id == "" {
-		http.Error(res, "No id has been given", http.StatusBadRequest)
+		http.Error(res, "No id given", http.StatusBadRequest)
 	}
 
 	var params map[string]interface{}
@@ -197,16 +200,17 @@ func UpdateUserById(res http.ResponseWriter, req *http.Request) {
 
 	update := bson.M{"$set": bson.M{params}}
 	if err = c.UpdateId(id, params); err != nil {
-		msg := fmt.Sprintf("User with id %s not found", id)
-		http.Error(res, msg, http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
 	}
-	res.Write([]byte("user updated"))
+	//res.Write([]byte("user updated"))
+	res.WriteHeader(http.StatusOK)
 }
 
-func GetReviewById(res http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("id")
+//now using mux
+func GetReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
+	id := mux.Vars(req)["id"]
 	if id == "" {
-		http.Error(res, "No id has been given", http.StatusBadRequest)
+		http.Error(res, "No id given", http.StatusBadRequest)
 	}
 	session, err := getSession()
 	if err != nil {
@@ -218,17 +222,17 @@ func GetReviewById(res http.ResponseWriter, req *http.Request) {
 	var review Review
 	err = c.FindId(id).One(&review)
 	if err != nil {
-		msg := fmt.Sprintf("Review with id %s has not been found", id)
-		http.Error(res, msg, http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusNotFound)
 	}
 	res.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(res).Encode(review)
 }
 
-func DeleteReviewById(res http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("id")
+//now using mux
+func DeleteReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
+	id := mux.Vars(req)["id"]
 	if id == "" {
-		http.Error(res, "No id has been given", http.StatusBadRequest)
+		http.Error(res, "No id given", http.StatusBadRequest)
 	}
 	session, err := getSession()
 	if err != nil {
@@ -239,13 +243,10 @@ func DeleteReviewById(res http.ResponseWriter, req *http.Request) {
 
 	err = c.RemoveId(id)
 	if err != nil {
-		msg := fmt.Sprintf("Review with id %s has not been found", id)
-		http.Error(res, msg, http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
 	}
-	res.WriteHeader(http.StatusNoContent)
 	res.Header().Set("Content-Type", "application/json")
-	res.Write([]byte("deleted"))
-	//json.NewEncoder(res).Encode(review)
+	res.WriteHeader(http.StatusNoContent)
 }
 
 func UpdateReviewById(res http.ResponseWriter, req *http.Request) {
@@ -253,7 +254,8 @@ func UpdateReviewById(res http.ResponseWriter, req *http.Request) {
 	//c.UpdateId(id, params) -> bson.M
 }
 
-func NewBook(res http.ResponseWriter, req *http.Request) {
+//improved
+func NewBookHandler(res http.ResponseWriter, req *http.Request) {
 	var book Book
 	err := json.NewDecoder(req.Body).Decode(&book)
 	if err != nil {
@@ -266,14 +268,18 @@ func NewBook(res http.ResponseWriter, req *http.Request) {
 	c := session.DB("bookstore").C("books")
 	book.Id = newID()
 	if err = c.Insert(book); err != nil {
-		http.Error(res, "Error inserting book", http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
 	}
+	location := fmt.Sprintf("/books/%s", book.Id)
+	res.Header().Set("Content-Type", "application/json")
+	res.Header().Set("Location", location)
 	res.WriteHeader(http.StatusCreated)
 	json.NewEncoder(res).Encode(book)
 }
 
-func DeleteBookById(res http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("id")
+//mux improved
+func DeleteBookByIdHandler(res http.ResponseWriter, req *http.Request) {
+	id := mux.Vars(req)["id"]
 	if id == "" {
 		http.Error(res, "No id has been given", http.StatusBadRequest)
 	}
@@ -286,17 +292,13 @@ func DeleteBookById(res http.ResponseWriter, req *http.Request) {
 
 	err = c.RemoveId(id)
 	if err != nil {
-		msg := fmt.Sprintf("Book with id %s has not been found", id)
-		http.Error(res, msg, http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
 	}
 	res.WriteHeader(http.StatusNoContent)
-	//res.Header().Set("Content-Type", "application/json")
-	res.Write([]byte("deleted"))
-	//json.NewEncoder(res).Encode(review)
 }
 
-func GetBookById(res http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("id")
+func GetBookByIdHandler(res http.ResponseWriter, req *http.Request) {
+	id := mux.Vars(req)["id"]
 	if id == "" {
 		http.Error(res, "No id has been given", http.StatusBadRequest)
 	}
@@ -310,8 +312,7 @@ func GetBookById(res http.ResponseWriter, req *http.Request) {
 	var book Book
 	err = c.FindId(id).One(&book)
 	if err != nil {
-		msg := fmt.Sprintf("Book with id %s has not been found", id)
-		http.Error(res, msg, http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusNotFound)
 	}
 	res.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(res).Encode(book)
@@ -442,8 +443,21 @@ func main() {
 	//AddReview()
 	//t := User{Id: "1", Name: "teste"}
 	//json.NewEncoder(os.Stdout).Encode(t)
-	http.HandleFunc("/teste", NewUser)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	//http.HandleFunc("/teste", NewUser)
+	//log.Fatal(http.ListenAndServe(":8080", nil))
+	r := mux.NewRouter()
+	h.HandleFunc("/users", NewUserHandler).Methods("POST")
+	h.HandleFunc("/users/{id}", GetUserByIdHandler).Methods("GET")
+	h.HandleFunc("/users/{id}", DeleteUserByIdHandler).Methods("DELETE")
+	h.HandleFunc("/users/{id}", UpdateUserByIdHandler).Methods("PUT")
+	h.HandleFunc("/users/{name}", GetUserByNameHandler).Methods("GET")
+	h.HandleFunc("/users/{name}", DeleteUserByNameHandler).Methods("DELETE")
+	h.HandleFunc("/reviews/{id}", GetReviewByIdHandler).Methods("GET")
+	h.HandleFunc("/reviews/{id}", DeleteReviewByIdHandler).Methods("DELETE")
+	h.HandleFunc("/books", NewBookHandler).Methods("POST")
+	h.HandleFunc("/books/{id}", DeleteBookByIdHandler).Methods("DELETE")
+	h.HandleFunc("/books/{id}", GetBookByIdHandler).Methods("GET")
+	http.Handle("/", r)
 }
 
 func getSession() (*mgo.Session, error) {
