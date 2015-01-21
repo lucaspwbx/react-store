@@ -4,9 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -35,33 +33,31 @@ type Book struct {
 	Reviews  []Review `json:"reviews"`
 }
 
-func (b Book) AddReview(description string, user User) error {
-	session, err := getSession()
-	if err != nil {
-		log.Fatalln("Error opening session")
-	}
-	defer session.Close()
-	//users := session.DB("bookstore").C("users")
+//func (b Book) AddReview(description string, user User) error {
+//session, err := getSession()
+//if err != nil {
+//log.Fatalln("Error opening session")
+//}
+//defer session.Close()
+//users := session.DB("bookstore").C("users")
 
-	review := &Review{
-		Id:          newID(),
-		Description: description,
-		User:        user,
-	}
-	reviews := session.DB("bookstore").C("reviews")
-	err = reviews.Insert(review)
-	if err != nil {
-		//log.Println("Error inserting review", err)
-		return errors.New("Error inserting review")
-	}
-	b.Reviews = append(b.Reviews, *review)
-	err = UpdateBookById(b.Id, bson.M{"$set": bson.M{"reviews": b.Reviews}})
-	if err != nil {
-		//	log.Println("Updating error", err)
-		return errors.New("Updating error")
-	}
-	return nil
-}
+//review := &Review{
+//Id:          newID(),
+//Description: description,
+//	User:        user,
+//}
+//reviews := session.DB("bookstore").C("reviews")
+//err = reviews.Insert(review)
+//if err != nil {
+//return errors.New("Error inserting review")
+//}
+//b.Reviews = append(b.Reviews, *review)
+//err = UpdateBookById(b.Id, bson.M{"$set": bson.M{"reviews": b.Reviews}})
+//if err != nil {
+//return errors.New("Updating error")
+//}
+//return nil
+//}
 
 // Format: {"id":"2","name":"joaozinho"}
 // {"name":"alco"}
@@ -80,7 +76,7 @@ func NewUserHandler(res http.ResponseWriter, req *http.Request) {
 	user.Id = newID()
 	err = c.Insert(user)
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(res, err.Error(), 422)
 	}
 	location := fmt.Sprintf("/users/%s", user.Id)
 	res.Header().Set("Content-Type", "application/json")
@@ -148,7 +144,7 @@ func DeleteUserByNameHandler(res http.ResponseWriter, req *http.Request) {
 	defer session.Close()
 	c := session.DB("bookstore").C("users")
 	if err = c.Remove(bson.M{"name": name}); err != nil {
-		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(res, err.Error(), 422)
 	}
 	res.WriteHeader(http.StatusNoContent)
 }
@@ -166,7 +162,7 @@ func DeleteUserByIdHandler(res http.ResponseWriter, req *http.Request) {
 	defer session.Close()
 	c := session.DB("bookstore").C("users")
 	if err = c.RemoveId(id); err != nil {
-		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(res, err.Error(), 422)
 	}
 	res.WriteHeader(http.StatusNoContent)
 }
@@ -181,13 +177,13 @@ func UpdateUserByIdHandler(res http.ResponseWriter, req *http.Request) {
 	var params map[string]interface{}
 	err := json.NewDecoder(req.Body).Decode(&params)
 	if err != nil {
-		http.Error(res, "Problem decoding JSON", http.StatusUnprocessableEntity)
+		http.Error(res, "Problem decoding JSON", 422)
 	}
 
 	//var user User
 	//err := json.NewDecoder(req.Body).Decode(&user)
 	//if err != nil {
-	//http.Error(res, "Problem decoding JSON", http.StatusUnprocessableEntity)
+	//http.Error(res, "Problem decoding JSON", 422)
 	//}
 
 	//update := bson.M{"$set": bson.M{"name": "modified", "pages": 29}}
@@ -196,14 +192,13 @@ func UpdateUserByIdHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
-	c := session.DB("bookstore").C("users")
+	//c := session.DB("bookstore").C("users")
 
-	update := bson.M{"$set": bson.M{params}}
-	if err = c.UpdateId(id, params); err != nil {
-		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
-	}
-	//res.Write([]byte("user updated"))
-	res.WriteHeader(http.StatusOK)
+	//update := bson.M{"$set": bson.M{params}}
+	//if err = c.UpdateId(id, params); err != nil {
+	//http.Error(res, err.Error(), 422)
+	//}
+	//res.WriteHeader(http.StatusOK)
 }
 
 //now using mux
@@ -243,7 +238,7 @@ func DeleteReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
 
 	err = c.RemoveId(id)
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(res, err.Error(), 422)
 	}
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusNoContent)
@@ -268,7 +263,7 @@ func NewBookHandler(res http.ResponseWriter, req *http.Request) {
 	c := session.DB("bookstore").C("books")
 	book.Id = newID()
 	if err = c.Insert(book); err != nil {
-		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(res, err.Error(), 422)
 	}
 	location := fmt.Sprintf("/books/%s", book.Id)
 	res.Header().Set("Content-Type", "application/json")
@@ -292,7 +287,7 @@ func DeleteBookByIdHandler(res http.ResponseWriter, req *http.Request) {
 
 	err = c.RemoveId(id)
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(res, err.Error(), 422)
 	}
 	res.WriteHeader(http.StatusNoContent)
 }
@@ -353,7 +348,7 @@ func DeleteBookByNameHandler(res http.ResponseWriter, req *http.Request) {
 
 	err = c.Remove(bson.M{"name": name})
 	if err != nil {
-		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
+		http.Error(res, err.Error(), 422)
 	}
 	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusNoContent)
@@ -367,50 +362,48 @@ func UpdateBookByIdHandler(res http.ResponseWriter, req *http.Request) {
 	var params map[string]interface{}
 	err := json.NewDecoder(req.Body).Decode(&params)
 	if err != nil {
-		http.Error(res, "Problems decoding JSON", http.StatusUnprocessableEntity)
+		http.Error(res, "Problems decoding JSON", 422)
 	}
-	session, err = getSession()
+	session, err := getSession()
 	if err != nil {
 		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
-	c := session.DB("bookstore").C("books")
+	//c := session.DB("bookstore").C("books")
 
-	update := bson.M{"$set": bson.M{params}}
-	if err = c.UpdateId(id, update); err != nil {
-		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
-	}
-	res.WriteHeader(http.StatusSuccess)
+	//jupdate := bson.M{"$set": bson.M{params}}
+	//if err = c.UpdateId(id, update); err != nil {
+	//http.Error(res, err.Error(), 422)
+	//}
+	//res.WriteHeader(http.StatusOK)
 }
 
-func AddReview() error {
-	session, err := getSession()
-	if err != nil {
-		log.Fatalln("Error opening session")
-	}
-	defer session.Close()
-	users := session.DB("bookstore").C("users")
-	//books := session.DB("bookstore").C("books")
-	reviews := session.DB("bookstore").C("reviews")
-	user := &User{Id: newID(), Name: "Renato"}
-	err = users.Insert(user)
-	if err != nil {
-		log.Println("Error inserting user: ", user)
-	}
-	review := &Review{Id: newID(), Description: "foobar", User: *user}
-	err = reviews.Insert(review)
-	if err != nil {
-		log.Println("Error inserting review", err)
-	}
-	book, _ := GetBookByName("english for dummies")
-	fmt.Println(book)
-	//book.Reviews = append(book.Reviews, *review)
-	err = UpdateBookById(book.Id, bson.M{"$set": bson.M{"reviews": review}})
-	if err != nil {
-		log.Println("Updating error", err)
-	}
-	return nil
-}
+//func AddReview() error {
+//session, err := getSession()
+//if err != nil {
+//log.Fatalln("Error opening session")
+//}
+//defer session.Close()
+//users := session.DB("bookstore").C("users")
+//reviews := session.DB("bookstore").C("reviews")
+//user := &User{Id: newID(), Name: "Renato"}
+//err = users.Insert(user)
+//if err != nil {
+//log.Println("Error inserting user: ", user)
+//}
+//review := &Review{Id: newID(), Description: "foobar", User: *user}
+//err = reviews.Insert(review)
+//if err != nil {
+//log.Println("Error inserting review", err)
+//}
+//book, _ := GetBookByName("english for dummies")
+//fmt.Println(book)
+//err = UpdateBookById(book.Id, bson.M{"$set": bson.M{"reviews": review}})
+//if err != nil {
+//log.Println("Updating error", err)
+//}
+//return nil
+//}
 
 func main() {
 	//_, err := NewBook("english for dummies", 10, "english", "0xyzueue")
@@ -444,21 +437,22 @@ func main() {
 	//http.HandleFunc("/teste", NewUser)
 	//log.Fatal(http.ListenAndServe(":8080", nil))
 	r := mux.NewRouter()
-	h.HandleFunc("/users", NewUserHandler).Methods("POST")
-	h.HandleFunc("/users/{id}", GetUserByIdHandler).Methods("GET")
-	h.HandleFunc("/users/{id}", DeleteUserByIdHandler).Methods("DELETE")
-	h.HandleFunc("/users/{id}", UpdateUserByIdHandler).Methods("PUT")
-	h.HandleFunc("/users/{name}", GetUserByNameHandler).Methods("GET")
-	h.HandleFunc("/users/{name}", DeleteUserByNameHandler).Methods("DELETE")
-	h.HandleFunc("/reviews/{id}", GetReviewByIdHandler).Methods("GET")
-	h.HandleFunc("/reviews/{id}", DeleteReviewByIdHandler).Methods("DELETE")
-	h.HandleFunc("/books", NewBookHandler).Methods("POST")
-	h.HandleFunc("/books/{id}", DeleteBookByIdHandler).Methods("DELETE")
-	h.HandleFunc("/books/{id}", GetBookByIdHandler).Methods("GET")
-	h.HandleFunc("/books/{id}", UpdateBookByIdHandler).Methods("PUT")
-	h.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("GET")
-	h.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("DELETE")
+	r.HandleFunc("/users", NewUserHandler).Methods("POST")
+	r.HandleFunc("/users/{id}", GetUserByIdHandler).Methods("GET")
+	r.HandleFunc("/users/{id}", DeleteUserByIdHandler).Methods("DELETE")
+	r.HandleFunc("/users/{id}", UpdateUserByIdHandler).Methods("PUT")
+	r.HandleFunc("/users/{name}", GetUserByNameHandler).Methods("GET")
+	r.HandleFunc("/users/{name}", DeleteUserByNameHandler).Methods("DELETE")
+	r.HandleFunc("/reviews/{id}", GetReviewByIdHandler).Methods("GET")
+	r.HandleFunc("/reviews/{id}", DeleteReviewByIdHandler).Methods("DELETE")
+	r.HandleFunc("/books", NewBookHandler).Methods("POST")
+	r.HandleFunc("/books/{id}", DeleteBookByIdHandler).Methods("DELETE")
+	r.HandleFunc("/books/{id}", GetBookByIdHandler).Methods("GET")
+	r.HandleFunc("/books/{id}", UpdateBookByIdHandler).Methods("PUT")
+	r.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("GET")
+	r.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("DELETE")
 	http.Handle("/", r)
+	http.ListenAndServe(":8080", r)
 }
 
 func getSession() (*mgo.Session, error) {
