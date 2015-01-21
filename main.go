@@ -318,8 +318,8 @@ func GetBookByIdHandler(res http.ResponseWriter, req *http.Request) {
 	json.NewEncoder(res).Encode(book)
 }
 
-func GetBookByName(res http.ResponseWriter, req *http.Request) {
-	name := req.FormValue("name")
+func GetBookByNameHandler(res http.ResponseWriter, req *http.Request) {
+	name := mux.Vars(req)["name"]
 	if name == "" {
 		http.Error(res, "No name has been given", http.StatusBadRequest)
 	}
@@ -333,15 +333,14 @@ func GetBookByName(res http.ResponseWriter, req *http.Request) {
 	var book Book
 	err = c.Find(bson.M{"name": name}).One(&book)
 	if err != nil {
-		msg := fmt.Sprintf("Book with name %s has not been found", name)
-		http.Error(res, msg, http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusNotFound)
 	}
 	res.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(res).Encode(book)
 }
 
-func DeleteBookByName(res http.ResponseWriter, req *http.Request) {
-	name := req.FormValue("name")
+func DeleteBookByNameHandler(res http.ResponseWriter, req *http.Request) {
+	name := mux.Vars(req)["name"]
 	if name == "" {
 		http.Error(res, "No name has been given", http.StatusBadRequest)
 	}
@@ -354,15 +353,14 @@ func DeleteBookByName(res http.ResponseWriter, req *http.Request) {
 
 	err = c.Remove(bson.M{"name": name})
 	if err != nil {
-		msg := fmt.Sprintf("Book with name %s has not been found", name)
-		http.Error(res, msg, http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
 	}
 	res.Header().Set("Content-Type", "application/json")
-	res.Write([]byte("deleted"))
+	res.WriteHeader(http.StatusNoContent)
 }
 
-func UpdateBookById(res http.ResponseWriter, req *http.Request) {
-	id := req.FormValue("id")
+func UpdateBookByIdHandler(res http.ResponseWriter, req *http.Request) {
+	id := mux.Vars(req)["id"]
 	if id == "" {
 		http.Error(res, "No id has been given", http.StatusBadRequest)
 	}
@@ -380,9 +378,9 @@ func UpdateBookById(res http.ResponseWriter, req *http.Request) {
 
 	update := bson.M{"$set": bson.M{params}}
 	if err = c.UpdateId(id, update); err != nil {
-		http.Error(res, "Problem updating book", http.StatusNotFound)
+		http.Error(res, err.Error(), http.StatusUnprocessableEntity)
 	}
-	res.Write([]byte("updated"))
+	res.WriteHeader(http.StatusSuccess)
 }
 
 func AddReview() error {
@@ -457,6 +455,9 @@ func main() {
 	h.HandleFunc("/books", NewBookHandler).Methods("POST")
 	h.HandleFunc("/books/{id}", DeleteBookByIdHandler).Methods("DELETE")
 	h.HandleFunc("/books/{id}", GetBookByIdHandler).Methods("GET")
+	h.HandleFunc("/books/{id}", UpdateBookByIdHandler).Methods("PUT")
+	h.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("GET")
+	h.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("DELETE")
 	http.Handle("/", r)
 }
 
