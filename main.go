@@ -17,8 +17,8 @@ import (
 
 type Review struct {
 	Id          string `bson:"_id"`
-	Description string
-	User        User
+	Description string `json:"description"`
+	User        User   `json:"user"`
 }
 
 type User struct {
@@ -27,12 +27,12 @@ type User struct {
 }
 
 type Book struct {
-	Id       string `bson:"_id"`
-	Name     string
-	Pages    int
-	Language string
-	ISBN     string
-	Reviews  []Review
+	Id       string   `bson:"_id"`
+	Name     string   `json:"name"`
+	Pages    int      `json:"pages"`
+	Language string   `json:"languages"`
+	ISBN     string   `json:"isbn"`
+	Reviews  []Review `json:"reviews"`
 }
 
 func (b Book) AddReview(description string, user User) error {
