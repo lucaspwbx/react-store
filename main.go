@@ -27,6 +27,24 @@ type Book struct {
 	Reviews  []Review `json:"reviews"`
 }
 
+func GetBookReviewsHandler(res http.ResponseWriter, req *http.Request) {
+	bookId := mux.Vars(req)["id"]
+
+	session, err := getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("books")
+
+	var reviews Reviews
+	if err = c.FindId(bookId).One(&book); err != nil {
+		http.Error(res, err.Error(), http.StatusNotFound)
+	}
+	res.Header().set("Content-Type", "application/json")
+	json.NewEncoder(res).Encode(book.Reviews)
+}
+
 // NEW HANDLER
 func GetBookReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
 	bookId := mux.Vars(req)["id"]
@@ -329,7 +347,9 @@ func main() {
 	r.HandleFunc("/books/{id}", GetBookByIdHandler).Methods("GET")
 	r.HandleFunc("/books/{id}", UpdateBookByIdHandler).Methods("PUT")
 	r.HandleFunc("/books/{id}/reviews", AddBookReviewHandler).Methods("POST")
+	r.HandleFunc("/books/{id}/reviews", GetBookReviewsHandler).Methods("GET")
 	r.HandleFunc("/books/{id}/reviews/{reviewId}", GetBookReviewByIdHandler).Methods("GET")
+	r.HandleFunc("/books/{id}/reviews/{reviewId}", DeleteBookReviewByIdHandler).Methods("DELETE")
 	r.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("GET")
 	r.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("DELETE")
 	http.Handle("/", r)
