@@ -28,7 +28,7 @@ type Book struct {
 }
 
 // NEW HANDLER
-func GetBookReviewByIdHandler(res *http.ResponseWriter, req *http.Request) {
+func GetBookReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
 	bookId := mux.Vars(req)["id"]
 	reviewId := mux.Vars(req)["reviewId"]
 	//if id == "" {
@@ -51,6 +51,27 @@ func GetBookReviewByIdHandler(res *http.ResponseWriter, req *http.Request) {
 	}
 	res.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(res).Encode(review)
+}
+
+// NEW HANDLER
+func DeleteBookReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
+	bookId := mux.Vars(req)["id"]
+	reviewId := mux.Vars(req)["reviewId"]
+	//if id == "" {
+	//http.Error(res, "No id given", http.StatusBadRequest)
+	//}
+	session, err := getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("books")
+
+	err = c.Remove(bson.M{"_id": bookId, "reviews": bson.M{"_id": reviewId}})
+	if err != nil {
+		http.Error(res, err.Error(), 422)
+	}
+	res.WriteHeader(http.StatusNoContent)
 }
 
 //now using mux
@@ -308,7 +329,7 @@ func main() {
 	r.HandleFunc("/books/{id}", GetBookByIdHandler).Methods("GET")
 	r.HandleFunc("/books/{id}", UpdateBookByIdHandler).Methods("PUT")
 	r.HandleFunc("/books/{id}/reviews", AddBookReviewHandler).Methods("POST")
-	r.HandleFunc("/books/{id}/reviews", GetBookReviewByIdHandler).Methods("GET")
+	r.HandleFunc("/books/{id}/reviews/{reviewId}", GetBookReviewByIdHandler).Methods("GET")
 	r.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("GET")
 	r.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("DELETE")
 	http.Handle("/", r)
