@@ -16,12 +16,7 @@ import (
 type Review struct {
 	Id          string `bson:"_id"`
 	Description string `json:"description"`
-	User        User   `json:"user"`
-}
-
-type User struct {
-	Id   string `bson:"_id"`
-	Name string `json:"name"`
+	Name        string `json:"name"`
 }
 
 type Book struct {
@@ -58,148 +53,6 @@ type Book struct {
 //}
 //return nil
 //}
-
-// Format: {"id":"2","name":"joaozinho"}
-// {"name":"alco"}
-func NewUserHandler(res http.ResponseWriter, req *http.Request) {
-	var user User
-	err := json.NewDecoder(req.Body).Decode(&user)
-	if err != nil {
-		http.Error(res, "Error decoding JSON", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("users")
-	user.Id = newID()
-	err = c.Insert(user)
-	if err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	location := fmt.Sprintf("/users/%s", user.Id)
-	res.Header().Set("Content-Type", "application/json")
-	res.Header().Set("Location", location)
-	res.WriteHeader(http.StatusCreated)
-	json.NewEncoder(res).Encode(user)
-}
-
-//now using mux
-func GetUserByNameHandler(res http.ResponseWriter, req *http.Request) {
-	name := mux.Vars(req)["name"]
-	if name == "" {
-		http.Error(res, "No name given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("users")
-
-	var user User
-	err = c.Find(bson.M{"name": name}).One(&user)
-	if err != nil {
-		msg := fmt.Sprintf("User %s not found", name)
-		http.Error(res, msg, http.StatusNotFound)
-	}
-	res.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(res).Encode(user)
-}
-
-//now using mux
-func GetUserByIdHandler(res http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	if id == "" {
-		http.Error(res, "No id given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("users")
-
-	var user User
-	err = c.FindId(id).One(&user)
-	if err != nil {
-		msg := fmt.Sprintf("User with id %s not found", id)
-		http.Error(res, msg, http.StatusNotFound)
-	}
-	res.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(res).Encode(user)
-}
-
-//now using mux
-func DeleteUserByNameHandler(res http.ResponseWriter, req *http.Request) {
-	name := mux.Vars(req)["name"]
-	if name == "" {
-		http.Error(res, "No name has been given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("users")
-	if err = c.Remove(bson.M{"name": name}); err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	res.WriteHeader(http.StatusNoContent)
-}
-
-//now using mux
-func DeleteUserByIdHandler(res http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	if id == "" {
-		http.Error(res, "No id given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("users")
-	if err = c.RemoveId(id); err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	res.WriteHeader(http.StatusNoContent)
-}
-
-//now using mux
-func UpdateUserByIdHandler(res http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	if id == "" {
-		http.Error(res, "No id given", http.StatusBadRequest)
-	}
-
-	var params map[string]interface{}
-	err := json.NewDecoder(req.Body).Decode(&params)
-	if err != nil {
-		http.Error(res, "Problem decoding JSON", 422)
-	}
-
-	//var user User
-	//err := json.NewDecoder(req.Body).Decode(&user)
-	//if err != nil {
-	//http.Error(res, "Problem decoding JSON", 422)
-	//}
-
-	//update := bson.M{"$set": bson.M{"name": "modified", "pages": 29}}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	//c := session.DB("bookstore").C("users")
-
-	//update := bson.M{"$set": bson.M{params}}
-	//if err = c.UpdateId(id, params); err != nil {
-	//http.Error(res, err.Error(), 422)
-	//}
-	//res.WriteHeader(http.StatusOK)
-}
 
 //now using mux
 func GetReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
@@ -437,12 +290,6 @@ func main() {
 	//http.HandleFunc("/teste", NewUser)
 	//log.Fatal(http.ListenAndServe(":8080", nil))
 	r := mux.NewRouter()
-	r.HandleFunc("/users", NewUserHandler).Methods("POST")
-	r.HandleFunc("/users/{id}", GetUserByIdHandler).Methods("GET")
-	r.HandleFunc("/users/{id}", DeleteUserByIdHandler).Methods("DELETE")
-	r.HandleFunc("/users/{id}", UpdateUserByIdHandler).Methods("PUT")
-	r.HandleFunc("/users/{name}", GetUserByNameHandler).Methods("GET")
-	r.HandleFunc("/users/{name}", DeleteUserByNameHandler).Methods("DELETE")
 	r.HandleFunc("/reviews/{id}", GetReviewByIdHandler).Methods("GET")
 	r.HandleFunc("/reviews/{id}", DeleteReviewByIdHandler).Methods("DELETE")
 	r.HandleFunc("/books", NewBookHandler).Methods("POST")
