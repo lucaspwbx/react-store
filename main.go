@@ -24,7 +24,6 @@ type Book struct {
 	Name     string   `json:"name"`
 	Pages    int      `json:"pages"`
 	Language string   `json:"languages"`
-	ISBN     string   `json:"isbn"`
 	Reviews  []Review `json:"reviews"`
 }
 
@@ -126,7 +125,12 @@ func UpdateReviewById(res http.ResponseWriter, req *http.Request) {
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("reviews")
-	if err = c.UpdateId(id, bson.M{"$set": bson.M{params}}); err != nil {
+
+	update := bson.M{
+		"description": params["description"],
+		"name":        params["name"],
+	}
+	if err = c.UpdateId(id, bson.M{"$set": update}); err != nil {
 		http.Error(res, err.Error(), 422)
 	}
 	res.WriteHeader(http.StatusOK)
@@ -254,7 +258,13 @@ func UpdateBookByIdHandler(res http.ResponseWriter, req *http.Request) {
 	defer session.Close()
 	c := session.DB("bookstore").C("books")
 
-	if err = c.UpdateId(id, bson.M{"$set": bson.M{params}}); err != nil {
+	update := bson.M{
+		"name":     params["name"],
+		"pages":    params["pages"],
+		"language": params["language"],
+		"reviews":  params["reviews"],
+	}
+	if err = c.UpdateId(id, bson.M{"$set": update}); err != nil {
 		http.Error(res, err.Error(), 422)
 	}
 	res.WriteHeader(http.StatusOK)
