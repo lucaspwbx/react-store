@@ -93,13 +93,43 @@ func DeleteReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(res, err.Error(), 422)
 	}
-	res.Header().Set("Content-Type", "application/json")
 	res.WriteHeader(http.StatusNoContent)
 }
 
+//now using mux
 func UpdateReviewById(res http.ResponseWriter, req *http.Request) {
-	//TODO
-	//c.UpdateId(id, params) -> bson.M
+	id := mux.Vars(req)["id"]
+	if id == "" {
+		http.Error(res, "No id given", http.StatusBadRequest)
+	}
+
+	// TODO -> remove after second handling is working
+	//var review Review
+	//err := json.NewDecoder(req.Body).Decode(&review)
+	//if err != nil {
+	//http.Error(res, "Error decoding JSON", http.StatusBadRequest)
+	//}
+
+	//var params map[string]interface{}
+	//params["description"] = review.Description
+	//params["name"] = review.Name
+
+	var params map[string]interface{}
+	err := json.NewDecoder(req.Body).Decode(&params)
+	if err != nil {
+		http.Error(res, "Error decoding JSON", http.StatusBadRequest)
+	}
+
+	session, err := getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("reviews")
+	if err = c.UpdateId(id, bson.M{"$set": params}); err != nil {
+		http.Error(res, err.Error(), 422)
+	}
+	res.WriteHeader(http.StatusOK)
 }
 
 //improved
