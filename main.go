@@ -270,32 +270,34 @@ func UpdateBookByIdHandler(res http.ResponseWriter, req *http.Request) {
 	res.WriteHeader(http.StatusOK)
 }
 
-//func AddReview() error {
-//session, err := getSession()
-//if err != nil {
-//log.Fatalln("Error opening session")
-//}
-//defer session.Close()
-//users := session.DB("bookstore").C("users")
-//reviews := session.DB("bookstore").C("reviews")
-//user := &User{Id: newID(), Name: "Renato"}
-//err = users.Insert(user)
-//if err != nil {
-//log.Println("Error inserting user: ", user)
-//}
-//review := &Review{Id: newID(), Description: "foobar", User: *user}
-//err = reviews.Insert(review)
-//if err != nil {
-//log.Println("Error inserting review", err)
-//}
-//book, _ := GetBookByName("english for dummies")
-//fmt.Println(book)
-//err = UpdateBookById(book.Id, bson.M{"$set": bson.M{"reviews": review}})
-//if err != nil {
-//log.Println("Updating error", err)
-//}
-//return nil
-//}
+func AddBookReviewHandler(res http.ResponseWriter, req *http.Request) {
+	id := mux.Vars(req)["id"]
+	if id == "" {
+		http.Error(res, "No id given", http.StatusBadRequest)
+	}
+	session, err := getSession()
+	if err != nil {
+		http.Error(res, "Error opening session", http.StatusInternalServerError)
+	}
+	defer session.Close()
+	c := session.DB("bookstore").C("books")
+
+	var book Book
+	if err = c.FindId(id).One(&book); err != nil {
+		http.Error(res, err.Error(), http.StatusNotFound)
+	}
+
+	book.Reviews = append(book.Reviews, Review{Id: newID(), Description: "foo", Name: "Dek"})
+	update := bson.M{
+		"reviews": book.Reviews,
+	}
+
+	if err = c.UpdateId(id, bson.M{"$set": update}); err != nil {
+		http.Error(res, err.Error(), 422)
+	}
+	res.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(res).Encode(book)
+}
 
 func main() {
 	r := mux.NewRouter()
@@ -305,6 +307,7 @@ func main() {
 	r.HandleFunc("/books/{id}", DeleteBookByIdHandler).Methods("DELETE")
 	r.HandleFunc("/books/{id}", GetBookByIdHandler).Methods("GET")
 	r.HandleFunc("/books/{id}", UpdateBookByIdHandler).Methods("PUT")
+	r.HandleFunc("/books/{id}/reviews", AddBookReviewHandler).Methods("POST")
 	r.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("GET")
 	r.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("DELETE")
 	http.Handle("/", r)
