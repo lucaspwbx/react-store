@@ -126,7 +126,7 @@ func UpdateReviewById(res http.ResponseWriter, req *http.Request) {
 	}
 	defer session.Close()
 	c := session.DB("bookstore").C("reviews")
-	if err = c.UpdateId(id, bson.M{"$set": params}); err != nil {
+	if err = c.UpdateId(id, bson.M{"$set": bson.M{params}}); err != nil {
 		http.Error(res, err.Error(), 422)
 	}
 	res.WriteHeader(http.StatusOK)
@@ -245,20 +245,19 @@ func UpdateBookByIdHandler(res http.ResponseWriter, req *http.Request) {
 	var params map[string]interface{}
 	err := json.NewDecoder(req.Body).Decode(&params)
 	if err != nil {
-		http.Error(res, "Problems decoding JSON", 422)
+		http.Error(res, "Error decoding JSON", http.StatusBadRequest)
 	}
 	session, err := getSession()
 	if err != nil {
 		http.Error(res, "Error opening session", http.StatusInternalServerError)
 	}
 	defer session.Close()
-	//c := session.DB("bookstore").C("books")
+	c := session.DB("bookstore").C("books")
 
-	//jupdate := bson.M{"$set": bson.M{params}}
-	//if err = c.UpdateId(id, update); err != nil {
-	//http.Error(res, err.Error(), 422)
-	//}
-	//res.WriteHeader(http.StatusOK)
+	if err = c.UpdateId(id, bson.M{"$set": bson.M{params}}); err != nil {
+		http.Error(res, err.Error(), 422)
+	}
+	res.WriteHeader(http.StatusOK)
 }
 
 //func AddReview() error {
@@ -289,36 +288,6 @@ func UpdateBookByIdHandler(res http.ResponseWriter, req *http.Request) {
 //}
 
 func main() {
-	//_, err := NewBook("english for dummies", 10, "english", "0xyzueue")
-	//if err != nil {
-	//fmt.Println("Error inserting new book")
-	//return
-	//}
-	//book, err := GetBookByName("english for dummies")
-	//if err != nil {
-	//fmt.Println("Nao achou")
-	//return
-	//}
-	//fmt.Println(book.Name)
-	//id := book.Id
-	//update := bson.M{"$set": bson.M{"name": "modified", "pages": 29}}
-	//err = UpdateBookById(id, update)
-	//if err != nil {
-	//fmt.Println("Error updating: ", err)
-	//return
-	//}
-	//fmt.Println("Updated")
-	//fmt.Println("Inseted")
-	//fmt.Println(book)
-	//err = DeleteBookByName("english for dummies")
-	//if err != nil {
-	//fmt.Println("Not deleted")
-	//}
-	//AddReview()
-	//t := User{Id: "1", Name: "teste"}
-	//json.NewEncoder(os.Stdout).Encode(t)
-	//http.HandleFunc("/teste", NewUser)
-	//log.Fatal(http.ListenAndServe(":8080", nil))
 	r := mux.NewRouter()
 	r.HandleFunc("/reviews/{id}", GetReviewByIdHandler).Methods("GET")
 	r.HandleFunc("/reviews/{id}", DeleteReviewByIdHandler).Methods("DELETE")
