@@ -3,14 +3,15 @@ package main
 import (
 	"crypto/rand"
 	"crypto/sha512"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	_ "github.com/lib/pq"
 )
 
 type Review struct {
@@ -20,378 +21,66 @@ type Review struct {
 }
 
 type Book struct {
-	Id       string   `bson:"_id"`
-	Name     string   `json:"name"`
+	Id       string   `json:"id"`
+	Title    string   `json:"title"`
 	Pages    int      `json:"pages"`
 	Language string   `json:"languages"`
 	Reviews  []Review `json:"reviews"`
 }
 
-// NOT WORKING
-func UpdateBookReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
-	bookId := mux.Vars(req)["id"]
-	reviewId := mux.Vars(req)["reviewId"]
+var db *sql.DB
 
-	var params map[string]interface{}
-	err := json.NewDecoder(req.Body).Decode(&params)
+func GetBooksHandler(w http.ResponseWriter, r *http.Request) {
+	rows, err := db.Query("SELECT * FROM books")
 	if err != nil {
-		http.Error(res, "Error decoding JSON", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	defer rows.Close()
+	var books []Book
+	for rows.Next() {
+		var book Book
+		err := rows.Scan(&book.Id, &book.Title, &book.Language, &book.Pages)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		books = append(books, book)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(books)
+}
 
-	session, err := getSession()
+func GetBookByIdHandler(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	rows, err := db.Query(`SELECT * FROM books WHERE id = $1`, id)
 	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusNotFound)
 	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-
-	//update := bson.M{
-	//"description": params["description"],
-	//"name":        params["name"],
-	//}
-
 	var book Book
-	err = c.Find(bson.M{"_id": bookId, "reviews": bson.M{"_id": reviewId}}).One(&book)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusNotFound)
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.Scan(&book.Id, &book.Title, &book.Language, &book.Pages)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(book)
 }
 
-// NEW HANDLER
-func GetBookReviewsHandler(res http.ResponseWriter, req *http.Request) {
-	bookId := mux.Vars(req)["id"]
-
-	session, err := getSession()
+func init() {
+	var err error
+	db, err = sql.Open("postgres", "user=lucasweiblen dbname=bookreviewer sslmode=disable")
 	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
+		log.Fatal(err)
 	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-
-	var book Book
-	if err = c.FindId(bookId).One(&book); err != nil {
-		http.Error(res, err.Error(), http.StatusNotFound)
-	}
-	res.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(res).Encode(book.Reviews)
-}
-
-// NEW HANDLER
-func GetBookReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
-	bookId := mux.Vars(req)["id"]
-	reviewId := mux.Vars(req)["reviewId"]
-	//if id == "" {
-	//http.Error(res, "No id given", http.StatusBadRequest)
-	//}
-	//if reviewId == "" {
-	//jhttp.Error(res, "No review id given", http.StatusBadRequest)
-	//}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-
-	var review Review
-	err = c.Find(bson.M{"_id": bookId, "reviews": bson.M{"_id": reviewId}}).One(&review)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusNotFound)
-	}
-	res.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(res).Encode(review)
-}
-
-// NEW HANDLER
-func DeleteBookReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
-	bookId := mux.Vars(req)["id"]
-	reviewId := mux.Vars(req)["reviewId"]
-	//if id == "" {
-	//http.Error(res, "No id given", http.StatusBadRequest)
-	//}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-
-	err = c.Remove(bson.M{"_id": bookId, "reviews": bson.M{"_id": reviewId}})
-	if err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	res.WriteHeader(http.StatusNoContent)
-}
-
-//now using mux
-func GetReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	if id == "" {
-		http.Error(res, "No id given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("reviews")
-
-	var review Review
-	err = c.FindId(id).One(&review)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusNotFound)
-	}
-	res.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(res).Encode(review)
-}
-
-//now using mux
-func DeleteReviewByIdHandler(res http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	if id == "" {
-		http.Error(res, "No id given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("reviews")
-
-	err = c.RemoveId(id)
-	if err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	res.WriteHeader(http.StatusNoContent)
-}
-
-//now using mux
-func UpdateReviewById(res http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	if id == "" {
-		http.Error(res, "No id given", http.StatusBadRequest)
-	}
-
-	// TODO -> remove after second handling is working
-	//var review Review
-	//err := json.NewDecoder(req.Body).Decode(&review)
-	//if err != nil {
-	//http.Error(res, "Error decoding JSON", http.StatusBadRequest)
-	//}
-
-	//var params map[string]interface{}
-	//params["description"] = review.Description
-	//params["name"] = review.Name
-
-	var params map[string]interface{}
-	err := json.NewDecoder(req.Body).Decode(&params)
-	if err != nil {
-		http.Error(res, "Error decoding JSON", http.StatusBadRequest)
-	}
-
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("reviews")
-
-	update := bson.M{
-		"description": params["description"],
-		"name":        params["name"],
-	}
-	if err = c.UpdateId(id, bson.M{"$set": update}); err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	res.WriteHeader(http.StatusOK)
-}
-
-//improved
-func NewBookHandler(res http.ResponseWriter, req *http.Request) {
-	var book Book
-	err := json.NewDecoder(req.Body).Decode(&book)
-	if err != nil {
-		http.Error(res, "Error decoding json", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	c := session.DB("bookstore").C("books")
-	book.Id = newID()
-	if err = c.Insert(book); err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	location := fmt.Sprintf("/books/%s", book.Id)
-	res.Header().Set("Content-Type", "application/json")
-	res.Header().Set("Location", location)
-	res.WriteHeader(http.StatusCreated)
-	json.NewEncoder(res).Encode(book)
-}
-
-//mux improved
-func DeleteBookByIdHandler(res http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	if id == "" {
-		http.Error(res, "No id has been given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-
-	err = c.RemoveId(id)
-	if err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	res.WriteHeader(http.StatusNoContent)
-}
-
-func GetBookByIdHandler(res http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	if id == "" {
-		http.Error(res, "No id has been given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-
-	var book Book
-	err = c.FindId(id).One(&book)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusNotFound)
-	}
-	res.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(res).Encode(book)
-}
-
-func GetBookByNameHandler(res http.ResponseWriter, req *http.Request) {
-	name := mux.Vars(req)["name"]
-	if name == "" {
-		http.Error(res, "No name has been given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-
-	var book Book
-	err = c.Find(bson.M{"name": name}).One(&book)
-	if err != nil {
-		http.Error(res, err.Error(), http.StatusNotFound)
-	}
-	res.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(res).Encode(book)
-}
-
-func DeleteBookByNameHandler(res http.ResponseWriter, req *http.Request) {
-	name := mux.Vars(req)["name"]
-	if name == "" {
-		http.Error(res, "No name has been given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-
-	err = c.Remove(bson.M{"name": name})
-	if err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	res.Header().Set("Content-Type", "application/json")
-	res.WriteHeader(http.StatusNoContent)
-}
-
-func UpdateBookByIdHandler(res http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	if id == "" {
-		http.Error(res, "No id has been given", http.StatusBadRequest)
-	}
-	var params map[string]interface{}
-	err := json.NewDecoder(req.Body).Decode(&params)
-	if err != nil {
-		http.Error(res, "Error decoding JSON", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-
-	update := bson.M{
-		"name":     params["name"],
-		"pages":    params["pages"],
-		"language": params["language"],
-		"reviews":  params["reviews"],
-	}
-	if err = c.UpdateId(id, bson.M{"$set": update}); err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	res.WriteHeader(http.StatusOK)
-}
-
-func AddBookReviewHandler(res http.ResponseWriter, req *http.Request) {
-	id := mux.Vars(req)["id"]
-	if id == "" {
-		http.Error(res, "No id given", http.StatusBadRequest)
-	}
-	session, err := getSession()
-	if err != nil {
-		http.Error(res, "Error opening session", http.StatusInternalServerError)
-	}
-	defer session.Close()
-	c := session.DB("bookstore").C("books")
-
-	var book Book
-	if err = c.FindId(id).One(&book); err != nil {
-		http.Error(res, err.Error(), http.StatusNotFound)
-	}
-
-	book.Reviews = append(book.Reviews, Review{Id: newID(), Description: "foo", Name: "Dek"})
-	update := bson.M{
-		"reviews": book.Reviews,
-	}
-
-	if err = c.UpdateId(id, bson.M{"$set": update}); err != nil {
-		http.Error(res, err.Error(), 422)
-	}
-	res.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(res).Encode(book)
 }
 
 func main() {
 	r := mux.NewRouter()
-	r.HandleFunc("/books", NewBookHandler).Methods("POST")
-	r.HandleFunc("/books/{id}", DeleteBookByIdHandler).Methods("DELETE")
+	r.HandleFunc("/books", GetBooksHandler).Methods("GET")
 	r.HandleFunc("/books/{id}", GetBookByIdHandler).Methods("GET")
-	r.HandleFunc("/books/{id}", UpdateBookByIdHandler).Methods("PUT")
-	r.HandleFunc("/books/{name}", GetBookByNameHandler).Methods("GET")
-	r.HandleFunc("/books/{name}", DeleteBookByNameHandler).Methods("DELETE")
-	r.HandleFunc("/books/{id}/reviews", AddBookReviewHandler).Methods("POST")
-	r.HandleFunc("/books/{id}/reviews", GetBookReviewsHandler).Methods("GET")
-	r.HandleFunc("/books/{id}/reviews/{reviewId}", GetBookReviewByIdHandler).Methods("GET")
-	r.HandleFunc("/books/{id}/reviews/{reviewId}", DeleteBookReviewByIdHandler).Methods("DELETE")
-	r.HandleFunc("/books/{id}/reviews/{reviewId}", UpdateBookReviewByIdHandler).Methods("PUT")
 	http.Handle("/", r)
 	http.ListenAndServe(":8080", r)
-}
-
-func getSession() (*mgo.Session, error) {
-	session, err := mgo.Dial("localhost:27017")
-	if err != nil {
-		return nil, err
-	}
-	return session, nil
 }
 
 func newID() string {
