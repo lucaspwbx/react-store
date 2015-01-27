@@ -90,8 +90,9 @@ func InsertBook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	fmt.Println(res.RowsAffected())
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Location", "/books/blabla")
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(book)
 }
 
