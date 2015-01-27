@@ -21,10 +21,10 @@ type Review struct {
 }
 
 type Book struct {
-	Id       string   `json:"id"`
+	Id       string   `json:"id, omitempty"`
 	Title    string   `json:"title"`
 	Pages    int      `json:"pages"`
-	Language string   `json:"languages"`
+	Language string   `json:"language"`
 	Reviews  []Review `json:"reviews"`
 }
 
@@ -42,6 +42,7 @@ func GetBooksHandler(w http.ResponseWriter, r *http.Request) {
 		err := rows.Scan(&book.Id, &book.Title, &book.Language, &book.Pages)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 		books = append(books, book)
 	}
@@ -61,10 +62,72 @@ func GetBookByIdHandler(w http.ResponseWriter, r *http.Request) {
 		err := rows.Scan(&book.Id, &book.Title, &book.Language, &book.Pages)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(book)
+}
+
+func DeleteBookByIdHandler(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+	_, err := db.Exec(`DELETE FROM books WHERE id = $1`, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func InsertBook(w http.ResponseWriter, r *http.Request) {
+	var book Book
+	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	res, err := db.Exec(`INSERT INTO books (title, language, pages) VALUES ($1, $2, $3)`, book.Title, book.Language, book.Pages)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Println(res.RowsAffected())
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(book)
+}
+
+func UpdateBookByIdHandler(w http.ResponseWriter, r *http.Request) {
+	//id := mux.Vars(r)["id"]
+	//fmt.Println(id)
+	//var params map[string]interface{}
+	//if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+	//http.Error(w, err.Error(), http.StatusBadRequest)
+	//return
+	//}
+	//var teste = fmt.Sprintf("UPDATE books ")
+	//teste += fmt.Sprintf("SET ")
+	//for k, v := range params {
+	//teste += fmt.Sprintf(`$1 = $2`, k, v)
+	//}
+	//fmt.Println(teste)
+	//teste = teste[0 : len(teste)-2]
+	//teste += fmt.Sprintf(` WHERE id = $1`, id)
+	//stmt, err := db.Prepare(teste)
+	//if err != nil {
+	//http.Error(w, err.Error(), http.StatusInternalServerError)
+	//return
+	//}
+	//fmt.Println(stmt)
+	//res, err := stmt.Exec()
+	//if err != nil {
+	//http.Error(w, err.Error(), http.StatusInternalServerError)
+	//return
+	//}
+	//rowCnt, err := res.RowsAffected()
+	//if err != nil {
+	//http.Error(w, err.Error(), http.StatusInternalServerError)
+	//return
+	//}
+	//fmt.Println(rowCnt)
 }
 
 func init() {
@@ -79,6 +142,9 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/books", GetBooksHandler).Methods("GET")
 	r.HandleFunc("/books/{id}", GetBookByIdHandler).Methods("GET")
+	r.HandleFunc("/books/{id}", DeleteBookByIdHandler).Methods("DELETE")
+	r.HandleFunc("/books/{id}", UpdateBookByIdHandler).Methods("PUT")
+	r.HandleFunc("/books", InsertBook).Methods("POST")
 	http.Handle("/", r)
 	http.ListenAndServe(":8080", r)
 }
