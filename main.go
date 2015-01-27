@@ -15,7 +15,7 @@ import (
 )
 
 type Review struct {
-	Id          string `bson:"_id"`
+	Id          string `json:"id, omitempty"`
 	Description string `json:"description"`
 	Name        string `json:"name"`
 }
