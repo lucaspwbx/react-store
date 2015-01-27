@@ -85,7 +85,7 @@ func InsertBook(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	res, err := db.Exec(`INSERT INTO books (title, language, pages) VALUES ($1, $2, $3)`, book.Title, book.Language, book.Pages)
+	_, err := db.Exec(`INSERT INTO books (title, language, pages) VALUES ($1, $2, $3)`, book.Title, book.Language, book.Pages)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -97,38 +97,31 @@ func InsertBook(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateBookByIdHandler(w http.ResponseWriter, r *http.Request) {
-	//id := mux.Vars(r)["id"]
-	//fmt.Println(id)
-	//var params map[string]interface{}
-	//if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
-	//http.Error(w, err.Error(), http.StatusBadRequest)
-	//return
-	//}
-	//var teste = fmt.Sprintf("UPDATE books ")
-	//teste += fmt.Sprintf("SET ")
-	//for k, v := range params {
-	//teste += fmt.Sprintf(`$1 = $2`, k, v)
-	//}
-	//fmt.Println(teste)
-	//teste = teste[0 : len(teste)-2]
-	//teste += fmt.Sprintf(` WHERE id = $1`, id)
-	//stmt, err := db.Prepare(teste)
-	//if err != nil {
-	//http.Error(w, err.Error(), http.StatusInternalServerError)
-	//return
-	//}
-	//fmt.Println(stmt)
-	//res, err := stmt.Exec()
-	//if err != nil {
-	//http.Error(w, err.Error(), http.StatusInternalServerError)
-	//return
-	//}
-	//rowCnt, err := res.RowsAffected()
-	//if err != nil {
-	//http.Error(w, err.Error(), http.StatusInternalServerError)
-	//return
-	//}
-	//fmt.Println(rowCnt)
+	id := mux.Vars(r)["id"]
+	rows, err := db.Query(`SELECT * FROM books WHERE id = $1`, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+	var book Book
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.Scan(&book.Id, &book.Title, &book.Language, &book.Pages)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	var params map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, err = db.Exec(`UPDATE books SET title = $1, language = $2, pages = $3 WHERE id = $4`, params["title"], params["language"], params["pages"], id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func init() {
