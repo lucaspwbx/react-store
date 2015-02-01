@@ -50,7 +50,7 @@ func GetBooksHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(books)
 }
 
-func GetBookByIdHandler(w http.ResponseWriter, r *http.Request) {
+func GetBookHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	rows, err := db.Query(`SELECT * FROM books WHERE id = $1`, id)
 	if err != nil {
@@ -69,7 +69,7 @@ func GetBookByIdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(book)
 }
 
-func DeleteBookByIdHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteBookHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	_, err := db.Exec(`DELETE FROM books WHERE id = $1`, id)
 	if err != nil {
@@ -79,7 +79,7 @@ func DeleteBookByIdHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func InsertBook(w http.ResponseWriter, r *http.Request) {
+func InsertBookHandler(w http.ResponseWriter, r *http.Request) {
 	var book Book
 	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -96,7 +96,7 @@ func InsertBook(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(book)
 }
 
-func UpdateBookByIdHandler(w http.ResponseWriter, r *http.Request) {
+func UpdateBookHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	rows, err := db.Query(`SELECT * FROM books WHERE id = $1`, id)
 	if err != nil {
@@ -144,7 +144,7 @@ func GetReviewsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reviews)
 }
 
-func GetReviewByIdHandler(w http.ResponseWriter, r *http.Request) {
+func GetReviewHandler(w http.ResponseWriter, r *http.Request) {
 	bookId := mux.Vars(r)["book_id"]
 	id := mux.Vars(r)["id"]
 	rows, err := db.Query(`SELECT * FROM reviews WHERE book_id = $1 AND id = $2`, bookId, id)
@@ -164,7 +164,7 @@ func GetReviewByIdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(review)
 }
 
-func DeleteReviewByIdHandler(w http.ResponseWriter, r *http.Request) {
+func DeleteReviewHandler(w http.ResponseWriter, r *http.Request) {
 	bookId := mux.Vars(r)["book_id"]
 	id := mux.Vars(r)["id"]
 	_, err := db.Exec(`DELETE FROM reviews WHERE book_id = $1 AND id = $2`, bookId, id)
@@ -186,13 +186,13 @@ func init() {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/books", GetBooksHandler).Methods("GET")
-	r.HandleFunc("/books/{id}", GetBookByIdHandler).Methods("GET")
-	r.HandleFunc("/books/{id}", DeleteBookByIdHandler).Methods("DELETE")
-	r.HandleFunc("/books/{id}", UpdateBookByIdHandler).Methods("PUT")
-	r.HandleFunc("/books", InsertBook).Methods("POST")
+	r.HandleFunc("/books/{id}", GetBookHandler).Methods("GET")
+	r.HandleFunc("/books/{id}", DeleteBookHandler).Methods("DELETE")
+	r.HandleFunc("/books/{id}", UpdateBookHandler).Methods("PUT")
+	r.HandleFunc("/books", InsertBookHandler).Methods("POST")
 	r.HandleFunc("/books/{book_id}/reviews", GetReviewsHandler).Methods("GET")
-	r.HandleFunc("/books/{book_id}/reviews/{id}", GetReviewByIdHandler).Methods("GET")
-	r.HandleFunc("/books/{book_id}/reviews/{id}", DeleteReviewByIdHandler).Methods("DELETE")
+	r.HandleFunc("/books/{book_id}/reviews/{id}", GetReviewHandler).Methods("GET")
+	r.HandleFunc("/books/{book_id}/reviews/{id}", DeleteReviewHandler).Methods("DELETE")
 	http.Handle("/", r)
 	http.ListenAndServe(":8080", r)
 }
