@@ -124,6 +124,46 @@ func UpdateBookByIdHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func GetReviewsHandler(w http.ResponseWriter, r *http.Request) {
+	bookId := mux.Vars(r)["book_id"]
+	rows, err := db.Query(`SELECT * FROM reviews WHERE book_id = $1`, bookId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+	defer rows.Close()
+
+	var reviews []Review
+	for rows.Next() {
+		var review Review
+		if err := rows.Scan(&review.Id, &review.Description, &review.Name); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		reviews = append(reviews, review)
+	}
+	json.NewEncoder(w).Encode(reviews)
+}
+
+func GetReviewByIdHandler(w http.ResponseWriter, r *http.Request) {
+	bookId := mux.Vars(r)["book_id"]
+	id := mux.Vars(r)["id"]
+	rows, err := db.Query(`SELECT * FROM reviews WHERE book_id = $1 AND id = $2`, bookId, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	defer rows.Close()
+
+	var review Review
+	for rows.Next() {
+		if err := rows.Scan(&review.Id, &review.Description, &review.Name); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	json.NewEncoder(w).Encode(review)
+}
+
 func init() {
 	var err error
 	db, err = sql.Open("postgres", "user=lucasweiblen dbname=bookreviewer sslmode=disable")
@@ -139,6 +179,8 @@ func main() {
 	r.HandleFunc("/books/{id}", DeleteBookByIdHandler).Methods("DELETE")
 	r.HandleFunc("/books/{id}", UpdateBookByIdHandler).Methods("PUT")
 	r.HandleFunc("/books", InsertBook).Methods("POST")
+	r.HandleFunc("/books/{book_id}/reviews", GetReviewsHandler).Methods("GET")
+	r.HandleFunc("/books/{book_id}/reviews/{id}", GetReviewByIdHandler).Methods("GET")
 	http.Handle("/", r)
 	http.ListenAndServe(":8080", r)
 }
