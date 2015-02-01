@@ -194,6 +194,36 @@ func InsertReviewHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(book)
 }
 
+func UpdateReviewHandler(w http.ResponseWriter, r *http.Request) {
+	bookId := mux.Vars(r)["book_id"]
+	id := mux.Vars(r)["id"]
+
+	rows, err := db.Query(`SELECT * FROM reviews WHERE book_id = $1 AND id = $2`, bookId, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+	}
+	var review Review
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.Scan(&review.Id, &review.Description, &review.Name)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+	var params map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&params); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	_, err = db.Exec(`UPDATE reviews SET description = $1, name = $2 WHERE book_id = $3 AND id = $4`, params["description"], params["name"], bookId, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func init() {
 	var err error
 	db, err = sql.Open("postgres", "user=lucasweiblen dbname=bookreviewer sslmode=disable")
@@ -213,6 +243,7 @@ func main() {
 	r.HandleFunc("/books/{book_id}/reviews/{id}", GetReviewHandler).Methods("GET")
 	r.HandleFunc("/books/{book_id}/reviews/{id}", DeleteReviewHandler).Methods("DELETE")
 	r.HandleFunc("/books/{book_id}/reviews/{id}", InsertReviewHandler).Methods("POST")
+	r.HandleFunc("/books/{book_id}/reviews/{id}", UpdateReviewHandler).Methods("PUT")
 	http.Handle("/", r)
 	http.ListenAndServe(":8080", r)
 }
