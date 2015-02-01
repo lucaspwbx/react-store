@@ -74,6 +74,83 @@
         }
       });
 
+      var NewReviewHeader = React.createClasss({
+        render: function() {
+          return (
+            <div>
+              <h1>New Review</h1>
+            </div>
+          );
+        }
+      });
+
+      var NewReviewForm = React.createClass({
+        handleSubmit: function() {
+          console.log('submitting new review');
+          var description = this.refs.description.getDOMNode().value;
+          var name = this.refs.name.getDOMNode().value;
+          //var bookId = this.props.bookId;
+          // TODO: POST /books/{id}/review
+        },
+        render: function() {
+          return (
+            <form onSubmit={this.handleSubmit}>
+              <input type='text' name='description' ref='description' />
+              <input type='text' name='name' ref='name' />
+              <input type='submit' value='Save Review' />
+            </form>
+            );
+        }
+      });
+
+      var NewReviewContainer = React.createClass({
+        render: function() {
+          return (
+            <NewReviewHeader />
+            <NewReviewForm bookId={1} />
+          );
+        }
+      });
+
+      var NewBookHeader = React.createClass({
+        render: function() {
+          return (
+            <div>
+              <h1>New Book</h1>
+            </div>
+            );
+        }
+      });
+
+      var NewBookForm = React.createClass({
+        handleSubmit: function() {
+          console.log('adding new book');
+          var title = this.refs.title.getDOMNode().value;
+          var pages = parseInt(this.refs.pages.getDOMNode().value);
+          var language = this.refs.language.getDOMNode().value;
+          // TODO: POST /books
+        },
+        render: function() {
+          return (
+            <form onSubmit={this.handleSubmit}>
+              <input type='text' name='title' ref='title' />
+              <input type='number' name='pages' ref='pages' />
+              <input type='text' name='language' ref='language' />
+              <input type='submit' value='Save Book' />
+            </form>
+          );
+        }
+      });
+
+      var NewBookContainer = React.createClass({
+        render: function() {
+          return (
+            <NewBookHeader />
+            <NewBookForm />
+          );
+        }
+      });
+
       React.render(
         <BookList/>, document.getElementById('app')
         );
