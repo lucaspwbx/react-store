@@ -164,6 +164,17 @@ func GetReviewByIdHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(review)
 }
 
+func DeleteReviewByIdHandler(w http.ResponseWriter, r *http.Request) {
+	bookId := mux.Vars(r)["book_id"]
+	id := mux.Vars(r)["id"]
+	_, err := db.Exec(`DELETE FROM reviews WHERE book_id = $1 AND id = $2`, bookId, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func init() {
 	var err error
 	db, err = sql.Open("postgres", "user=lucasweiblen dbname=bookreviewer sslmode=disable")
@@ -181,6 +192,7 @@ func main() {
 	r.HandleFunc("/books", InsertBook).Methods("POST")
 	r.HandleFunc("/books/{book_id}/reviews", GetReviewsHandler).Methods("GET")
 	r.HandleFunc("/books/{book_id}/reviews/{id}", GetReviewByIdHandler).Methods("GET")
+	r.HandleFunc("/books/{book_id}/reviews/{id}", DeleteReviewByIdHandler).Methods("DELETE")
 	http.Handle("/", r)
 	http.ListenAndServe(":8080", r)
 }
