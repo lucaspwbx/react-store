@@ -1,14 +1,11 @@
 package main
 
 import (
-	"crypto/rand"
-	"crypto/sha512"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
@@ -246,17 +243,4 @@ func main() {
 	r.HandleFunc("/books/{book_id}/reviews/{id}", UpdateReviewHandler).Methods("PUT")
 	http.Handle("/", r)
 	http.ListenAndServe(":8080", r)
-}
-
-func newID() string {
-	var buf [32]byte
-	_, err := rand.Read(buf[:])
-	if err != nil {
-		return ""
-	}
-	nanoUnix := time.Now().UnixNano()
-	hash := sha512.New()
-	hash.Write(buf[:])
-	hash.Write([]byte(fmt.Sprintf("%d", nanoUnix)))
-	return fmt.Sprintf("%x", hash.Sum(nil))
 }
