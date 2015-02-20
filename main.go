@@ -12,14 +12,14 @@ import (
 )
 
 type Review struct {
-	Id          int    `json:"id, omitempty"`
-	BookId      int    `json:"book_id, omitempty"`
+	Id          int    `json:"id"`
+	BookId      int    `json:"book_id`
 	Description string `json:"description"`
 	Name        string `json:"name"`
 }
 
 type Book struct {
-	Id       int      `json:"id, omitempty"`
+	Id       int      `json:"id`
 	Title    string   `json:"title"`
 	Pages    int      `json:"pages"`
 	Language string   `json:"language"`
