@@ -12,13 +12,14 @@ import (
 )
 
 type Review struct {
-	Id          string `json:"id, omitempty"`
+	Id          int    `json:"id, omitempty"`
+	BookId      int    `json:"book_id, omitempty"`
 	Description string `json:"description"`
 	Name        string `json:"name"`
 }
 
 type Book struct {
-	Id       string   `json:"id, omitempty"`
+	Id       int      `json:"id, omitempty"`
 	Title    string   `json:"title"`
 	Pages    int      `json:"pages"`
 	Language string   `json:"language"`
@@ -27,6 +28,7 @@ type Book struct {
 
 var db *sql.DB
 
+//WORKING
 func GetBooksHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Query("SELECT * FROM books")
 	if err != nil {
@@ -47,6 +49,7 @@ func GetBooksHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(books)
 }
 
+//WORKING
 func GetBookHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	rows, err := db.Query(`SELECT * FROM books WHERE id = $1`, id)
@@ -66,6 +69,7 @@ func GetBookHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(book)
 }
 
+//WORKING
 func DeleteBookHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	_, err := db.Exec(`DELETE FROM books WHERE id = $1`, id)
@@ -76,6 +80,7 @@ func DeleteBookHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+//WORKING
 func InsertBookHandler(w http.ResponseWriter, r *http.Request) {
 	var book Book
 	if err := json.NewDecoder(r.Body).Decode(&book); err != nil {
@@ -93,6 +98,7 @@ func InsertBookHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(book)
 }
 
+// WORKING but strange issue with pages
 func UpdateBookHandler(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	rows, err := db.Query(`SELECT * FROM books WHERE id = $1`, id)
@@ -121,6 +127,7 @@ func UpdateBookHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+//WORKING
 func GetReviewsHandler(w http.ResponseWriter, r *http.Request) {
 	bookId := mux.Vars(r)["book_id"]
 	rows, err := db.Query(`SELECT * FROM reviews WHERE book_id = $1`, bookId)
@@ -132,7 +139,7 @@ func GetReviewsHandler(w http.ResponseWriter, r *http.Request) {
 	var reviews []Review
 	for rows.Next() {
 		var review Review
-		if err := rows.Scan(&review.Id, &review.Description, &review.Name); err != nil {
+		if err := rows.Scan(&review.Id, &review.BookId, &review.Description, &review.Name); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -141,6 +148,7 @@ func GetReviewsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(reviews)
 }
 
+//WORKING
 func GetReviewHandler(w http.ResponseWriter, r *http.Request) {
 	bookId := mux.Vars(r)["book_id"]
 	id := mux.Vars(r)["id"]
@@ -153,7 +161,7 @@ func GetReviewHandler(w http.ResponseWriter, r *http.Request) {
 
 	var review Review
 	for rows.Next() {
-		if err := rows.Scan(&review.Id, &review.Description, &review.Name); err != nil {
+		if err := rows.Scan(&review.Id, &review.BookId, &review.Description, &review.Name); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -161,6 +169,7 @@ func GetReviewHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(review)
 }
 
+//WORKING
 func DeleteReviewHandler(w http.ResponseWriter, r *http.Request) {
 	bookId := mux.Vars(r)["book_id"]
 	id := mux.Vars(r)["id"]
@@ -172,6 +181,7 @@ func DeleteReviewHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+//WORKING, fix location header
 func InsertReviewHandler(w http.ResponseWriter, r *http.Request) {
 	bookId := mux.Vars(r)["book_id"]
 	var review Review
@@ -179,6 +189,7 @@ func InsertReviewHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	//review.BookId = bookId
 	_, err := db.Exec(`INSERT INTO reviews (book_id, description, name) VALUES ($1, $2, $3)`, bookId, review.Description, review.Name)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -188,9 +199,10 @@ func InsertReviewHandler(w http.ResponseWriter, r *http.Request) {
 	location := fmt.Sprintf("/books/%d/reviews/foo", bookId)
 	w.Header().Set("Location", location)
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(book)
+	json.NewEncoder(w).Encode(review)
 }
 
+//WORKING
 func UpdateReviewHandler(w http.ResponseWriter, r *http.Request) {
 	bookId := mux.Vars(r)["book_id"]
 	id := mux.Vars(r)["id"]
@@ -202,7 +214,7 @@ func UpdateReviewHandler(w http.ResponseWriter, r *http.Request) {
 	var review Review
 	defer rows.Close()
 	for rows.Next() {
-		err := rows.Scan(&review.Id, &review.Description, &review.Name)
+		err := rows.Scan(&review.Id, &review.BookId, &review.Description, &review.Name)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
