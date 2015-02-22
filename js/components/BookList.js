@@ -1,8 +1,12 @@
 var React = require('react');
 var $ = require('jquery');
 var Book = require('./Book');
+var AddReviewForm = require('./AddReviewForm');
 
 var BookList = React.createClass({
+  handleNewReview: function(review) {
+    console.log(review);
+  },
   getInitialState: function() {
     return {
       books: []
@@ -28,9 +32,12 @@ var BookList = React.createClass({
       var reviews = book.reviews ? book.reviews : [];
 
       return (
-        <Book key={index} title={book.title} language={book.language} pages={book.pages} reviews={reviews}/>
+        <div>
+          <Book key={book.id} title={book.title} language={book.language} pages={book.pages} reviews={reviews}/>
+          <AddReviewForm bookId={book.id} newReview={this.handleNewReview} />
+        </div>
       );
-    });
+    }.bind(this));
 
     return (
       <div>
