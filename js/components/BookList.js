@@ -6,7 +6,6 @@ var AddReviewForm = require('./AddReviewForm');
 var BookList = React.createClass({
   handleNewReview: function(review) {
     var _this = this;
-    //console.log(review);
     var request = $.ajax({
       url: 'http://localhost:8080/books/' + review.id + '/reviews',
       crossDomain: true,
@@ -24,11 +23,13 @@ var BookList = React.createClass({
       });
     });
   },
+
   getInitialState: function() {
     return {
       books: []
     };
   },
+
   getBooks: function() {
     return $.ajax({
       url: 'http://localhost:8080/books',
@@ -36,6 +37,7 @@ var BookList = React.createClass({
       dataType: 'json',
     });
   },
+
   componentDidMount: function() {
     var _this = this;
     this.getBooks().then(function(result) {
@@ -44,6 +46,7 @@ var BookList = React.createClass({
       });
     });
   },
+
   render: function() {
     var books = this.state.books.map(function(book, index) {
       var reviews = book.reviews ? book.reviews : [];

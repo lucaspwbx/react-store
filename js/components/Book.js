@@ -18,7 +18,9 @@ var Book = React.createClass({
         <p>Title: {this.props.title}</p>
         <p>Language: {this.props.language}</p>
         <p>Pages: {this.props.pages}</p>
-        <p>{reviews}</p>
+        <ul>
+          {reviews}
+        </ul>
         <hr/>
       </div>
     );
