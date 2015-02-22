@@ -10,10 +10,11 @@ var Book = React.createClass({
     }
     return (
       <div>
-      Title: {this.props.title}
-      Language: {this.props.language}
-      Pages: {this.props.pages}
-      {reviews}
+        <p>Title: {this.props.title}</p>
+        <p>Language: {this.props.language}</p>
+        <p>Pages: {this.props.pages}</p>
+        <p>{reviews}</p>
+        <hr/>
       </div>
     );
   }

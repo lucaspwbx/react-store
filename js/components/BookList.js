@@ -34,8 +34,8 @@ var BookList = React.createClass({
 
     return (
       <div>
-      Lista de livros
-      {books}
+        <h1>Lista de livros</h1>
+        {books}
       </div>
     );
   }
