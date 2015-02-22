@@ -1,10 +1,15 @@
 var React = require('react');
+var Review = require('./Review');
 
 var Book = React.createClass({
   render: function() {
     var reviews = '';
     if (this.props.reviews.length > 0) {
-      reviews = 'Reviews: ' + this.props.reviews;
+      reviews = this.props.reviews.map(function(review, index) {
+        return (
+          <Review key={index} description={review.description} name={review.name} />
+        );
+      });
     } else {
       reviews = 'No reviews';
     }

@@ -5,7 +5,24 @@ var AddReviewForm = require('./AddReviewForm');
 
 var BookList = React.createClass({
   handleNewReview: function(review) {
-    console.log(review);
+    var _this = this;
+    //console.log(review);
+    var request = $.ajax({
+      url: 'http://localhost:8080/books/' + review.id + '/reviews',
+      crossDomain: true,
+      dataType: 'json',
+      method: 'POST',
+      data: JSON.stringify({name: review.name, description: review.description})
+    });
+    
+    request.done(function(response) {
+      console.log(response);
+      _this.getBooks().then(function(result) {
+        _this.setState({
+          books: result
+        });
+      });
+    });
   },
   getInitialState: function() {
     return {
