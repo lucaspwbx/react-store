@@ -13,7 +13,7 @@ import (
 
 type Review struct {
 	Id          int    `json:"id"`
-	BookId      int    `json:"book_id`
+	BookId      int    `json:"book_id"`
 	Description string `json:"description"`
 	Name        string `json:"name"`
 }
@@ -43,8 +43,26 @@ func GetBooksHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		rows2, err := db.Query(`SELECT * FROM reviews WHERE book_id = $1`, book.Id)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		defer rows.Close()
+
+		for rows2.Next() {
+			var review Review
+			err := rows2.Scan(&review.Id, &review.BookId, &review.Description, &review.Name)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			book.Reviews = append(book.Reviews, review)
+		}
+
 		books = append(books, book)
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(books)
 }
