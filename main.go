@@ -19,7 +19,7 @@ type Review struct {
 }
 
 type Book struct {
-	Id       int      `json:"id`
+	Id       int      `json:"id"`
 	Title    string   `json:"title"`
 	Pages    int      `json:"pages"`
 	Language string   `json:"language"`
